@@ -52,10 +52,11 @@ they flow into the workbook and CSV (placeholder `PRJ` until you change them).
   Nothing to install — the spreadsheet library ships bundled in
   `pipeline/vendor/`; any stock Python 3 works (macOS includes one).
 
-  **Windows:** install Python once (free, [python.org/downloads](https://www.python.org/downloads/) —
-  tick *"Add python.exe to PATH"*), then just **drag your breakdown `.json`
-  onto `pipeline\build_xlsx.bat`**. The browser tool itself needs no install
-  anywhere — it's one HTML file.
+  **Windows — zero install:** grab **`build_xlsx.exe`** from the
+  [Releases page](../../releases) and drag your breakdown `.json` onto it
+  (the workbook template is bundled inside the exe). Alternatively, with
+  Python installed, drag the `.json` onto `pipeline\build_xlsx.bat`. The
+  browser tool itself needs no install anywhere — it's one HTML file.
 
   Produces `<PROJ>_VFX_Breakdown.xlsx` from `pipeline/template.xlsx`: Shot
   Breakdown sheet with live formulas, Days column, storyboards embedded in

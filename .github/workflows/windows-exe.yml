@@ -1,0 +1,43 @@
+name: Windows exe
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install pyinstaller openpyxl==3.1.5
+
+      - name: Build single-file exe (template bundled inside)
+        run: pyinstaller --onefile --name build_xlsx --add-data "pipeline/template.xlsx;." pipeline/build_xlsx.py
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          '{"title":"CI TEST","proj":"PRJ","seq":"PRJ","includePrices":true,"rows":[{"item":20,"page":1,"scene":"1","ie":"INT.","location":"TEST","tod":"DAY","days":1,"char":"","text":"test line","status":"vfx","elements":["Test"],"methods":[],"lod":"E","shots":1,"cost":100,"notes":""}]}' | Set-Content ci_breakdown.json
+          ./dist/build_xlsx.exe ci_breakdown.json ci_out.xlsx
+          if (!(Test-Path ci_out.xlsx)) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build_xlsx-windows
+          path: dist/build_xlsx.exe
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/build_xlsx.exe --title "${{ github.ref_name }}" --notes "Windows: download build_xlsx.exe and drag your breakdown .json onto it - no installs needed. The workbook template is bundled inside. macOS/Linux need no download at all: python3 pipeline/build_xlsx.py works from the repo."

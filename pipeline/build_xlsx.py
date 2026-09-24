@@ -61,11 +61,17 @@ def image_size(data):
             i += 2 + int.from_bytes(data[i + 2:i + 4], "big")
     return None
 
-TEMPLATE = Path(__file__).parent / "template.xlsx"
+# frozen (PyInstaller) builds carry template.xlsx inside the executable
+_BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+TEMPLATE = _BASE / "template.xlsx"
 DATA_START = 6  # first data row in Shot Breakdown
 
 
 def main():
+    if len(sys.argv) < 2:
+        print("Drag a *_breakdown.json file onto this program, or run:")
+        print("    build_xlsx <breakdown.json> [output.xlsx]")
+        return
     src = Path(sys.argv[1])
     data = json.loads(src.read_text())
     proj = (data.get("proj") or "PRJ").strip() or "PRJ"
@@ -231,4 +237,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"ERROR: {e}")
+        if getattr(sys, "frozen", False):
+            input("Press Enter to close...")
+        raise
+    if getattr(sys, "frozen", False):
+        input("Done - press Enter to close...")

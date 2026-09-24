@@ -1,0 +1,2123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VFX Script Breakdown</title>
+<style>
+:root{
+  --bg:#0e1116; --panel:#151a22; --panel2:#1b222c; --line:#2a323f;
+  --txt:#e6edf5; --dim:#8a97a8; --dim2:#5d6878;
+  --accent:#4da3ff; --green:#3fb984; --amber:#e0a33e; --red:#e0574d; --violet:#a77dff;
+  --bg2:#11161d; --hover:#141a22; --selbg:#1a2836; --active:#22303f; --rowline:#1e242e;
+  --badge-bg:#28425e; --badge-fg:#9ecbff; --chipno-bg:#242a33; --chipno-fg:#66717f;
+  --chiptbd-bg:#3d3320; --chipvfx-bg:#183a2c; --pick-bg:#17392c; --pick-bd:#275c47;
+  --pick-fg:#8fe5c0; --pick-fg2:#5fae8c; --mpick-bg:#1b3350; --mpick-bd:#33567f;
+  --scroll:#2c3440; --onfill:#06121f; --action-fg:#c9d4e2; --dot-none:#333c49; --novfx-on:#6b7686;
+  --hoverdark:rgba(0,0,0,.45); --tint-rgb:63,185,132; --txt-rgb:230,237,245; --accent-rgb:77,163,255;
+}
+body.light{
+  --bg:#f2f4f8; --panel:#ffffff; --panel2:#eef1f5; --line:#d8dee7;
+  --txt:#1c2430; --dim:#5a6675; --dim2:#8a95a5;
+  --accent:#2f7fe0; --green:#188a5c; --amber:#b57310; --red:#c44038; --violet:#6f42d0;
+  --bg2:#e9edf3; --hover:#f0f3f7; --selbg:#dcebfc; --active:#e2ecf9; --rowline:#e6ebf2;
+  --badge-bg:#d8e6f8; --badge-fg:#2b66ad; --chipno-bg:#e4e8ee; --chipno-fg:#7c8797;
+  --chiptbd-bg:#f6ead0; --chipvfx-bg:#d7f0e3; --pick-bg:#e2f5ec; --pick-bd:#a4d8bf;
+  --pick-fg:#116b46; --pick-fg2:#3d8f6a; --mpick-bg:#e1ecfa; --mpick-bd:#aac7ec;
+  --scroll:#c9d1dc; --onfill:#ffffff; --action-fg:#38455a; --dot-none:#c4ccd8; --novfx-on:#8b96a5;
+  --hoverdark:rgba(0,0,0,.16); --tint-rgb:24,138,92; --txt-rgb:28,36,48; --accent-rgb:47,127,224;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:5px}
+::-webkit-scrollbar-track{background:transparent}
+
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex:none;
+  flex-wrap:wrap;row-gap:7px}   /* wrap so controls are never pushed off-screen on a narrow window */
+@media (max-width:1180px){ .stats{margin-left:0} }
+.title{font-weight:700;letter-spacing:.3px;font-size:14px;white-space:nowrap}
+.subtitle{color:var(--dim2);font-size:11px}
+.stats{display:flex;gap:16px;margin-left:auto;align-items:center}
+.stat{text-align:right;line-height:1.15}
+.stat b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.stat span{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:.6px}
+.btn{padding:6px 11px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--onfill);font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
+#progress{height:3px;background:var(--panel2);flex:none}
+#progress div{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .2s}
+
+main{display:flex;flex:1;min-height:0}
+.pane{display:flex;flex-direction:column;min-height:0}
+
+/* scene strip */
+#strip{width:218px;border-right:1px solid var(--line);background:var(--panel);transition:width .15s}
+#strip.min{width:44px}
+#strip.min .sc-h,#strip.min .sc-meta,#strip.min .badge,#strip.min #scCount{display:none}
+.pane-head{padding:7px 10px;border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:center;flex:none}
+.pane-body{overflow-y:auto;flex:1;min-height:0}
+.scene{padding:6px 8px;border-bottom:1px solid var(--rowline);cursor:pointer;display:flex;gap:6px;align-items:flex-start}
+.scene:hover{background-color:var(--hoverdark)}
+.scene.on{background-color:var(--active);
+  box-shadow:inset 4px 0 0 var(--accent), inset 0 0 0 1px rgba(var(--accent-rgb),.6)}
+.scene.on .n{color:var(--accent);font-weight:700}
+.scene.on .sc-h b{color:var(--accent)}
+.scene .n{color:rgba(var(--txt-rgb),var(--metaop,.70));font-variant-numeric:tabular-nums;font-size:11px;min-width:24px;text-align:right;padding-top:1px}
+.sc-h{flex:1;min-width:0;font-size:11px;line-height:1.3}
+.sc-h b{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-meta{font-style:normal;color:rgba(var(--txt-rgb),var(--metaop,.70));font-size:10px}
+.scene .badge{font-size:10px;padding:1px 5px;border-radius:9px;background:var(--badge-bg);color:var(--badge-fg);font-weight:600;white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;flex:none;margin-top:4px}
+.dot.none{background:var(--dot-none)}.dot.part{background:var(--amber)}.dot.done{background:var(--green)}
+
+/* script pane */
+#script{flex:1;background:var(--bg)}
+#lines{padding:6px 0 45vh;max-width:760px;margin:0 auto}
+.shead{position:sticky;top:0;z-index:6;background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 14px;display:flex;gap:10px;align-items:center;cursor:pointer;margin-top:14px}
+.shead.sel{background:var(--selbg);box-shadow:inset 3px 0 0 var(--accent);border-color:var(--accent)}
+.shead:hover{background-color:var(--bg2);
+  background-image:linear-gradient(var(--hoverdark),var(--hoverdark))}
+.shead.sel:hover{background-color:var(--selbg)}
+.shead b{font-family:"Courier New",monospace;font-size:13px;letter-spacing:.4px}
+.shead .pg{color:var(--dim2);font-size:10.5px;white-space:nowrap}
+.shead .sn{color:var(--accent);font-variant-numeric:tabular-nums;font-family:"Courier New",monospace;font-weight:700}
+.blk{display:flex;gap:8px;padding:2px 12px 2px 4px;cursor:pointer;border-left:3px solid transparent}
+.blk:hover{background:var(--hoverdark)}
+.blk.sel{background:var(--selbg);border-left-color:var(--accent)}
+.blk .gut{width:66px;flex:none;display:flex;gap:4px;align-items:center;justify-content:flex-end;padding-top:2px}
+.blk .item{font-size:9.5px;color:var(--dim2);font-variant-numeric:tabular-nums}
+.chip{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700;letter-spacing:.3px}
+.chip.novfx{background:var(--chipno-bg);color:var(--chipno-fg)}
+.chip.tbd{background:var(--chiptbd-bg);color:var(--amber)}
+.chip.vfx{background:var(--chipvfx-bg);color:var(--green)}
+.chip.prac{background:var(--pick-bg);color:var(--violet)}
+body:not(.light) .chip.prac{background:#2a2140}
+body.light .chip.prac{background:#ece3fb}
+.seg button.on[data-prac]{background:var(--violet);border-color:var(--violet)}
+.blk .body{flex:1;min-width:0;font-family:"Courier New",Courier,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word}
+.blk.t-action .body{color:var(--action-fg)}
+.blk.t-dialogue .body{color:var(--txt);padding-left:44px}
+.blk.t-dialogue .body .cue{display:block;color:var(--violet);font-weight:700;letter-spacing:.5px}
+.blk.t-transition .body{color:var(--dim2);text-align:right;font-style:italic}
+.blk .sow{font-family:-apple-system,sans-serif;font-size:10.5px;color:var(--green);margin-top:2px;white-space:pre-wrap}
+.blk .sow .meta{color:var(--dim2)}
+.blk .sow .mth{color:var(--badge-fg)}
+
+/* inspector */
+#inspector{width:390px;border-left:1px solid var(--line);background:var(--panel)}
+.sec{padding:9px 12px;border-bottom:1px solid var(--line)}
+.sec>label{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim2);margin-bottom:6px;font-weight:700}
+.row{display:flex;gap:6px;align-items:center}
+.seg{display:flex;gap:4px}
+.seg button{flex:1;padding:7px 4px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);font-size:11.5px;font-weight:600}
+.seg button:hover{border-color:var(--dim)}
+.seg button.on{color:var(--onfill)}
+.seg button.on[data-s=novfx]{background:var(--novfx-on);border-color:var(--novfx-on)}
+.seg button.on[data-s=tbd]{background:var(--amber);border-color:var(--amber)}
+.seg button.on[data-s=vfx]{background:var(--green);border-color:var(--green)}
+.seg button.on[data-l]{background:var(--accent);border-color:var(--accent)}
+.el{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;margin:0 4px 4px 0;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:11px}
+.el:hover{border-color:var(--accent)}
+.el.on{background:var(--pick-bg);border-color:var(--green);color:var(--pick-fg)}
+.el.mon{background:var(--mpick-bg);border-color:var(--mpick-bd);color:var(--badge-fg)}
+.el small{color:var(--dim2);font-size:9.5px}
+.el.on small{color:var(--pick-fg2)}
+.elib{max-height:200px;overflow-y:auto;margin-top:6px}
+.ecat{font-size:9.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.6px;margin:8px 0 4px;font-weight:700}
+.eldrop{border:1px solid var(--accent);border-radius:6px;margin-top:4px;max-height:190px;overflow-y:auto;background:var(--panel)}
+.eldrop button{display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px;font-size:11.5px;text-align:left;border-bottom:1px solid var(--rowline)}
+.eldrop button:last-child{border-bottom:none}
+.eldrop button:hover{background:var(--selbg)}
+.eldrop button.has{color:var(--green)}
+.eldrop .c{color:var(--dim2);font-size:9.5px;margin-left:auto;white-space:nowrap}
+.eldrop .none{padding:7px 9px;font-size:11px;color:var(--dim2)}
+.picked{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+.picked div{display:flex;align-items:center;gap:6px;background:var(--pick-bg);border:1px solid var(--pick-bd);border-radius:5px;padding:4px 7px;font-size:11.5px}
+.picked div.m{background:var(--mpick-bg);border-color:var(--mpick-bd)}
+.picked div span{flex:1}
+.picked div button{color:var(--dim);font-size:14px;line-height:1}
+.picked div button:hover{color:var(--red)}
+.tiers{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.tiers button{padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid var(--line);color:var(--dim)}
+.tiers button:hover{border-color:var(--accent);color:var(--txt)}
+.phr{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.phr button{padding:2px 7px;font-size:10px;border-radius:10px;border:1px solid var(--line);color:var(--dim)}
+.phr button:hover{border-color:var(--amber);color:var(--txt)}
+.total{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;background:var(--bg2)}
+.total b{font-size:22px;font-variant-numeric:tabular-nums;color:var(--green)}
+.empty{padding:40px 20px;text-align:center;color:var(--dim2);font-size:12px;line-height:1.9}
+kbd{background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;font:11px "SF Mono",monospace;color:var(--dim)}
+
+#lightbox{position:fixed;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;z-index:80;cursor:zoom-out}
+#lightbox img{width:92vw;height:88vh;object-fit:contain;border-radius:8px;box-shadow:0 24px 70px #000a}
+#lightbox .cap{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font-size:12px;background:#0009;padding:6px 14px;border-radius:16px;max-width:80vw;text-align:center}
+#lightbox .x{position:absolute;top:14px;right:18px;color:#fff;font-size:26px;line-height:1}
+.thumbwrap img,.shot-sum img.mini{cursor:zoom-in}
+.mask{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:660px;max-height:84vh;display:flex;flex-direction:column;box-shadow:0 20px 60px #000a}
+.modal h3{margin:0;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px}
+.modal .mb{padding:14px 16px;overflow-y:auto}
+.modal .mf{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--rowline)}
+th{color:var(--dim2);font-size:9.5px;text-transform:uppercase;letter-spacing:.5px}
+mark.hl{background:var(--chiptbd-bg);color:var(--amber);border-radius:2px;padding:0 1px}
+mark.hl.cur{background:var(--accent);color:var(--onfill);font-weight:700}
+#srchNav{display:none;align-items:center;gap:2px}
+#srchNav.on{display:flex}
+#srchNav span{font-size:10.5px;color:var(--dim2);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+#srchNav button{padding:3px 7px;border-radius:5px;border:1px solid var(--line);font-size:11px;line-height:1}
+#srchNav button:hover{border-color:var(--accent);color:var(--accent)}
+.costcell{display:none}
+.showcost .costcell{display:inline}
+.showcost .costrow{display:flex}
+.diffb{font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.4px}
+.diffb.L{background:var(--chipvfx-bg);color:var(--green)}
+.diffb.M{background:var(--chiptbd-bg);color:var(--amber)}
+.diffb.H{background:#f8dcd9;color:var(--red)}
+body:not(.light) .diffb.H{background:#42201d}
+.shot{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--panel2);overflow:hidden}
+.shot.open{border-color:var(--accent)}
+.shot-h{display:flex;gap:8px;align-items:center;padding:7px 9px;cursor:pointer}
+.shot-h .id{font:700 11px "SF Mono",monospace;color:var(--accent);white-space:nowrap}
+.shot-h .lbl{flex:1;min-width:0;font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shot-h .cost{font-variant-numeric:tabular-nums;color:var(--green);font-size:11.5px;white-space:nowrap}
+.shot-h .del{color:var(--dim2);font-size:15px;line-height:1;padding:0 2px}
+.shot-h .del:hover{color:var(--red)}
+.shot-sum{padding:0 9px 7px;font-size:10.5px;color:var(--dim);white-space:pre-wrap}
+.shot-sum .d{color:var(--txt);font-size:11px;display:block;margin-bottom:2px}
+.shot-sum .e{color:var(--green);font-size:10px}
+.shot.dragging{opacity:.4}
+.shot.dropbefore{box-shadow:0 -3px 0 -1px var(--accent)}
+.shot.dropafter{box-shadow:0 3px 0 -1px var(--accent)}
+.shot-h .grip{color:var(--dim2);font-size:11px;cursor:grab;letter-spacing:-2px;user-select:none}
+.shot-h .grip:active{cursor:grabbing}
+.shot.linked{border-style:dashed}
+.shot.linked .id{color:var(--violet)}
+.shot.linked:hover{border-color:var(--violet)}
+.linkhdr{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim2);font-weight:700;margin:10px 0 5px}
+.shot-b{border-top:1px solid var(--line);padding:8px 9px;background:var(--panel)}
+.shot-b .sec{padding:7px 0;border-bottom:1px dashed var(--line)}
+.shot-b .sec:last-child{border-bottom:none}
+.blk[draggable]{cursor:grab}
+.blk.dragging{opacity:.45}
+.descdrop{outline:2px dashed var(--accent);outline-offset:1px;background:var(--selbg)}
+.dropz{border:2px dashed var(--line);border-radius:8px;padding:14px 8px;text-align:center;color:var(--dim2);font-size:11px;cursor:pointer;transition:border-color .12s,background .12s}
+.dropz:hover,.dropz.over{border-color:var(--accent);color:var(--accent);background:var(--selbg)}
+.thumbwrap{position:relative;display:inline-block}
+.thumbwrap img{max-width:100%;max-height:170px;border-radius:6px;border:1px solid var(--line);display:block}
+.thumbwrap .rmimg{position:absolute;top:4px;right:4px;background:#000a;color:#fff;border-radius:50%;width:20px;height:20px;font-size:13px;line-height:1}
+.thumbwrap .rmimg:hover{background:var(--red)}
+.shot-sum img.mini{float:left;width:52px;height:36px;object-fit:cover;border-radius:4px;border:1px solid var(--line);margin-right:7px}
+#bdview{position:fixed;inset:0;background:var(--bg);z-index:70;display:flex;flex-direction:column}
+#bdview .bar{display:flex;gap:12px;align-items:center;padding:9px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+#bdview .wrap{flex:1;overflow:auto}
+#bdview table{border-collapse:collapse;font-size:11px;min-width:1400px}
+#bdview th{position:sticky;top:0;background:#666;color:#fff;font-weight:700;padding:6px 8px;text-align:left;white-space:nowrap;z-index:2}
+#bdview td{border-bottom:1px solid var(--rowline);padding:4px 8px;vertical-align:top;max-width:340px}
+#bdview tr.rw{cursor:pointer}
+#bdview tr.rw:hover{background:var(--hover)}
+#bdview tr.scn td{background:var(--bg2);font-weight:600}
+#bdview td.num{font-variant-numeric:tabular-nums;text-align:right}
+#bdview td img{height:52px;border-radius:4px;cursor:zoom-in;display:block}
+#bdview input.dz{width:52px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 5px;font-size:11px;text-align:center}
+#bdview input.nt{width:220px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 6px;font-size:11px}
+.dvrow:hover{background:var(--hoverdark)}
+#setup{position:fixed;inset:0;background:var(--bg);z-index:90;display:flex;align-items:center;justify-content:center}
+.su-card{width:470px;max-width:92vw;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 28px;box-shadow:0 22px 60px #0006}
+.su-card h1{font-size:18px;margin:0 0 6px}
+.su-sub{color:var(--dim);font-size:12px;margin:0 0 16px;line-height:1.6}
+.su-status{font-size:11.5px;color:var(--dim2);margin-top:10px;line-height:1.6;min-height:16px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--green);color:var(--onfill);font-weight:600;padding:8px 16px;border-radius:20px;z-index:99;font-size:12px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="btn" id="btnStrip" title="Toggle scene list">☰</button>
+    <div>
+      <div class="title" id="filmTitle"></div>
+      <div class="subtitle" id="filmSub"></div>
+    </div>
+    <input id="search" placeholder="Search script…" style="width:150px">
+    <div id="srchNav"><button id="srchPrev" title="Previous (⇧⏎)">◀</button><span id="srchCount">0/0</span><button id="srchNext" title="Next (⏎)">▶</button></div>
+    <select id="elFilter" title="Filter by category or element" style="width:172px"><option value="">Filter by element…</option></select>
+    <select id="filter" title="Filter lines">
+      <option value="all">All lines</option>
+      <option value="untagged">Untagged</option>
+      <option value="vfx">VFX only</option>
+      <option value="tbd">TBD only</option>
+      <option value="prac">Practical only</option>
+    </select>
+    <div class="stats">
+      <div class="stat"><b id="stShots">0</b><span>Shots</span></div>
+      <div class="stat"><b id="stDays">0</b><span>Est. days</span></div>
+    </div>
+    <button class="btn" id="btnHist" title="History" style="opacity:.45">↩</button>
+    <button class="btn" id="btnBd">Breakdown</button>
+    <button class="btn" id="btnOver" style="font-weight:600">Overview</button>
+    <button class="btn" id="btnTheme" title="Toggle light/dark">☀︎</button>
+    <button class="btn" id="btnLib">Library</button>
+    <button class="btn" id="btnSum">Summary</button>
+    <button class="btn" id="btnImp" title="Load a session backup or breakdown JSON">Import</button>
+    <button class="btn primary" id="btnExp">Export</button>
+  </header>
+  <div id="progress"><div style="width:0"></div></div>
+  <main>
+    <section class="pane" id="strip">
+      <div class="pane-head"><b style="font-size:11px">§</b>
+        <span id="scCount" class="subtitle" style="margin-left:auto"></span>
+        <button id="btnStripFilter" title="Apply filters to this list" style="line-height:0;color:var(--dim2);padding:2px"></button>
+      </div>
+      <div class="pane-body" id="sceneList"></div>
+    </section>
+    <section class="pane" id="script">
+      <div class="pane-body" id="scriptBody"><div id="lines"></div></div>
+    </section>
+    <section class="pane" id="inspector">
+      <div class="pane-body" id="inspBody"></div>
+    </section>
+  </main>
+</div>
+<div id="setup" hidden>
+  <div class="su-card">
+    <h1>🎬 VFX Script Breakdown</h1>
+    <p class="su-sub">Break a screenplay down into VFX shots, scope, days and cost — right in your browser.
+      The PDF is parsed locally; nothing is uploaded anywhere.</p>
+    <div class="dropz" id="pdfDrop" style="padding:38px 18px;font-size:13px">Drop a screenplay PDF here — or click to browse</div>
+    <div class="row" style="margin-top:12px">
+      <input id="suTitle" placeholder="Project title" style="flex:1">
+    </div>
+    <div id="suStatus" class="su-status"></div>
+    <button class="btn primary" id="suGo" style="width:100%;margin-top:12px" disabled>Start breakdown</button>
+    <button class="btn" id="suImport" style="width:100%;margin-top:8px">Import a session backup (.json)</button>
+  </div>
+</div>
+<script>
+const SCRIPT_KEY="vfxsb:script";
+let DATA=null;
+try{ const r0=localStorage.getItem(SCRIPT_KEY); if(r0) DATA=JSON.parse(r0); }catch(e){}
+
+/* ---------- starter rate card — generic per-shot pricing; edit anything in Library ---------- */
+const SEED = [
+ ["Screens & Comps","Phone Comp","E",200],["Screens & Comps","Laptop Monitor Comp","E",200],
+ ["Screens & Comps","TV Comp","E",300],["Screens & Comps","TV News Overlay","E",300],
+ ["Screens & Comps","Heart Monitor Comp","E",200],["Screens & Comps","iPad Comp","E",200],
+ ["Screens & Comps","Video Camera Overlay","E",200],["Screens & Comps","Monitor Comp","E",450],
+ ["Screens & Comps","Misc Window Comps","E",500],["Screens & Comps","Projection / Screen Comp","E",450],
+ ["Cleanup","SFX Cleanup","E",500],["Cleanup","Modesty Garment Cleanup","E",500],
+ ["Cleanup","Stunt Pad / Rig / Wire Cleanup","E",1000],["Cleanup","Stunt Soft Prop Cleanup","E",1500],
+ ["Cleanup","Plate Blend","E/M",1000],["Cleanup","Misc Cleanup","E",500],
+ ["Cleanup","Misc Wig Fixes","E",250],["Cleanup","Crew / Equipment Removal","E",750],
+ ["Cleanup","Sign / Logo Removal","E",500],["Cleanup","Modern Element Removal","E",750],
+ ["Cleanup","Reflection Removal","E",750],
+ ["Blood & Gore","CG Blood and Gore Enhancements","M",1000],["Blood & Gore","CG Wound Reveal(s)","M",1000],
+ ["Blood & Gore","CG Eye Wound Enhancements","M",650],["Blood & Gore","Squib Enhancement","E/M",1000],
+ ["Fire & Atmos","CG Flames","M",3000],["Fire & Atmos","CG Smoke","M",3000],
+ ["Fire & Atmos","2D Distant Smoke and Fires Element Comp","E/M",700],
+ ["Fire & Atmos","Misc Dry Ice Enhancements","E/M",1000],["Fire & Atmos","Breath FX","E",500],
+ ["Fire & Atmos","Rain / Snow Element Comp","E/M",1000],["Fire & Atmos","Steam / Vapor Element","E",500],
+ ["Destruction","CG Glass Shatter Enhancements","E/M",4500],["Destruction","CG Shattered Glass Extension","M",3500],
+ ["Destruction","Debris Element Comp","E/M",1200],
+ ["Extensions","Set Extension","M",1500],["Extensions","Building Signage / Facade Enhancements","M",1250],
+ ["Extensions","CG Prop Extension","M",650],["Extensions","CG Weapon Extension","M",1500],
+ ["Extensions","Sky Replacement","E/M",1000],["Extensions","Window Exterior Comp","E/M",1000],
+ ["Character","Match Move","M",650],["Character","Face Replacement","M",4500],
+ ["Character","Split Screen","E",750],["Character","Twinning / Double Comp","M",2500],
+ ["Character","Beauty / Makeup Fix","E",500],["Character","Age Adjustment","M",3000],
+ ["Opticals","VHS FX Overlay","E",100],["Opticals","Blurring and Swirling Colors FX","E",1000],
+ ["Opticals","Memory Flashback Impressionistic FX","M",2000],["Opticals","Misc Opticals","E",250],
+ ["Opticals","Misc Shot Growth","E",500],["Opticals","Speed Ramp / Retime","E",500],
+ ["Opticals","Day-for-Night","E/M",1000],["Opticals","Title / Graphic Insert","E",250],
+].map(([cat,name,lod,cost])=>({cat,name,lod,cost}));
+
+/* ---------- shooting methodology vocabulary ---------- */
+const METHODS = [
+ "Practical (in-camera)","Screen playback on set","Screen comp in post","Plate + comp",
+ "Green/blue screen","Clean plate capture","Element shoot","SFX practical + VFX enhance",
+ "Stunt rig + paint-out","Full CG","Drone plate","Locked-off camera","Motion control",
+ "Split comp / twinning","Crowd tiling","Day-for-night","Previs recommended","2nd unit plate day",
+];
+const PHRASES = [
+ "Assumes practical location","Assumes continuous shot","Assumes screen content provided",
+ "Assumes locked-off camera","Assumes clean plate shot on the day","Assumes SFX practical base",
+ "Assumes stunt performed practically","Needs on-set VFX supervision","Camera test recommended",
+ "Bid assumes single setup",
+];
+
+const TIERS=[100,200,250,450,500,750,1000,1250,1500,2000,2500,3000,4000,4500,6000,8000];
+const LODRANK={"E":0,"E/M":1,"M":2}, LODS=["E","E/M","M"];
+let KEY=null;
+
+/* ---------- state ---------- */
+let S=null;
+function initState(){
+  KEY="vfxsb:state:"+DATA.title;
+  S = load() || {seq:DATA.sequence||"PRJ", proj:"PRJ", hybrid:100, allowShots:0, allowRate:500, items:{}, scenes:{}, lib:SEED.slice()};
+  if(!S.lib) S.lib=SEED.slice();
+  if(!S.scenes) S.scenes={};
+  if(!S.review) S.review=[];
+  if(S.proj==null) S.proj="PRJ";
+  if(S.seq==null) S.seq="PRJ";
+  Object.values(S.items||{}).forEach(r=>{ if(r.status==="novfx") r.status="" });
+  DATA.scenes.forEach((sc,si)=>sc.lines.forEach(l=>{l._s=si;ALL.push(l)}));
+}
+let sel=[], anchor=null, filter="all", query="", elFilter="", curScene=0, stripFilter=false;
+let sceneEdit=null, activeShot=0, lineElQ="", shotElQ="", reviewByScene=true;
+// localStorage throws outright in some sandboxed contexts (data: urls, locked-down
+// previews); never let a preference read take the whole app down with it
+function lsGet(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
+let costPreview = lsGet("vfxbd:costPreview")==="1";   // default off
+let exportPrices = lsGet("vfxbd:exportPrices")!=="0";  // default on
+function elMatches(q){
+  q=q.trim().toLowerCase(); if(!q) return [];
+  return S.lib.filter(e=>(e.name+" "+e.cat).toLowerCase().includes(q))
+              .sort((a,b)=>a.name.localeCompare(b.name)).slice(0,12);
+}
+function dropHtml(q,chosen,attr){
+  if(!q.trim()) return "";
+  const ms=elMatches(q);
+  if(!ms.length) return `<div class="eldrop"><div class="none">No element matches “${esc(q)}”.</div></div>`;
+  return `<div class="eldrop">${ms.map(e=>
+    `<button ${attr}="${esc(e.name)}" class="${chosen.includes(e.name)?"has":""}">
+       <span>${chosen.includes(e.name)?"✓ ":""}${esc(e.name)}</span>
+       <span class="c">${esc(e.cat)} · ${e.lod}${costPreview?"·"+e.cost:""}</span></button>`).join("")}</div>`;
+}
+function srec(si){ return S.scenes[si] || (S.scenes[si]={difficulty:"",notes:"",shots:[]}) }
+function shas(si){ return S.scenes[si] }
+function shotCost(sh){ if(sh.lock) return sh.cost||0;
+  if(!(sh.elements||[]).length) return sh.cost||0;
+  let c=0; sh.elements.forEach(n=>{const e=findEl(n); if(e)c+=e.cost}); return c }
+function shotLod(sh){ if(sh.lod) return sh.lod;
+  let l="E"; (sh.elements||[]).forEach(n=>{const e=findEl(n); if(e&&LODRANK[e.lod]>LODRANK[l])l=e.lod}); return l }
+
+function load(){ try{ const r=lsGet(KEY); return r?JSON.parse(r):null }catch(e){ return null } }
+let saveT; function save(){ linkedSet=null; clearTimeout(saveT); saveT=setTimeout(()=>{
+  try{ localStorage.setItem(KEY,JSON.stringify(S)) }
+  catch(e){ toast("⚠ Storage full — remove some images or export a session backup") }
+},250) }
+
+const ALL=[];
+function rec(it){ return S.items[it] || (S.items[it]={status:"",practical:false,elements:[],methods:[],lod:"",shots:0,cost:0,days:0,notes:"",lock:false}) }
+function has(it){ const r=S.items[it]; if(r&&!r.methods)r.methods=[]; return r }
+function money(n){ return "$"+(n||0).toLocaleString("en-US") }
+function findEl(n){ return S.lib.find(e=>e.name===n) }
+function renameEl(oldN,newN){
+  let n=0;
+  Object.values(S.items||{}).forEach(r=>{
+    if(r.elements&&r.elements.includes(oldN)){ r.elements=r.elements.map(x=>x===oldN?newN:x); n++ }
+  });
+  Object.values(S.scenes||{}).forEach(sc=>(sc.shots||[]).forEach(sh=>{
+    if(sh.elements&&sh.elements.includes(oldN)){ sh.elements=sh.elements.map(x=>x===oldN?newN:x); n++ }
+  }));
+  return n;
+}
+function catsOf(){ return [...new Set(S.lib.map(e=>e.cat))] }            // workflow order
+function elsIn(c){ return S.lib.filter(e=>e.cat===c).sort((a,b)=>a.name.localeCompare(b.name)) }
+function libGroups(){                                                     // A→Z cats, A→Z names, orig index kept
+  const g={}; S.lib.forEach((e,i)=>{ (g[e.cat]=g[e.cat]||[]).push({e,i}) });
+  return Object.keys(g).sort((a,b)=>a.localeCompare(b))
+    .map(c=>[c, g[c].sort((x,y)=>x.e.name.localeCompare(y.e.name))]);
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) }
+
+function elMatch(els){
+  if(!elFilter) return true;
+  if(elFilter.startsWith("cat:")){
+    const c=elFilter.slice(4);
+    return els.some(n=>{const e=findEl(n); return (e?e.cat:"Other")===c});
+  }
+  return els.includes(elFilter);
+}
+function elUsage(){
+  const u={};
+  const add=(n,cnt,cost,share)=>{u[n]=u[n]||{n:0,c:0}; u[n].n+=cnt; u[n].c+=cost/share};
+  ALL.forEach(l=>{const r=has(l.item);
+    if(r&&r.status==="vfx"&&(r.elements||[]).length)
+      r.elements.forEach(n=>add(n,r.shots||0,(r.shots||0)*itemCost(r),r.elements.length))});
+  Object.keys(S.scenes).forEach(si=>(S.scenes[si].shots||[]).forEach(sh=>{
+    if((sh.elements||[]).length){const c=shotCost(sh);
+      sh.elements.forEach(n=>add(n,sh.count||1,(sh.count||1)*c,sh.elements.length))}}));
+  return u;
+}
+function suggest(r){
+  if(!r.elements.length) return {lod:r.lod||"E",cost:r.cost||0};
+  let lod="E",cost=0;
+  r.elements.forEach(n=>{const e=findEl(n); if(!e)return; cost+=e.cost; if(LODRANK[e.lod]>LODRANK[lod])lod=e.lod});
+  return {lod,cost};
+}
+function itemCost(r){ return r.lock ? (r.cost||0) : suggest(r).cost }
+let linkedSet=null;
+function linkedItems(){
+  if(linkedSet) return linkedSet;
+  linkedSet=new Set();
+  for(const si in S.scenes)
+    for(const sh of (S.scenes[si].shots||[]))
+      (sh.lines||[]).forEach(i=>linkedSet.add(i));
+  return linkedSet;
+}
+function isLinked(item){ return linkedItems().has(item) }
+function shotForLine(item){
+  for(const si in S.scenes){
+    const shots=S.scenes[si].shots||[];
+    for(let i=0;i<shots.length;i++)
+      if((shots[i].lines||[]).includes(item)) return {si:+si,idx:i};
+  }
+  return null;
+}
+function totals(){
+  let shots=0,cost=0,done=0,days=0;
+  ALL.forEach(l=>{const r=has(l.item); if((r&&(r.status||r.practical))||isLinked(l.item))done++;
+    if(r&&r.status==="vfx"){shots+=r.shots||0; cost+=(r.shots||0)*itemCost(r); days+=(r.shots||0)*(r.days||0)}});
+  Object.keys(S.scenes).forEach(si=>{ (S.scenes[si].shots||[]).forEach(sh=>{
+    shots+=sh.count||0; cost+=(sh.count||0)*shotCost(sh); days+=(sh.count||0)*(sh.days||0); }) });
+  const aShots=+S.allowShots||0, aCost=aShots*(+S.allowRate||0);
+  return {shots,cost,done,days,aShots,aCost,tShots:shots+aShots,tCost:cost+aCost,
+          avg:shots?Math.round(cost/shots):0, prog:Math.round(done/ALL.length*100)};
+}
+function sceneStat(si){
+  let shots=0,cost=0,done=0,days=0,n=DATA.scenes[si].lines.length,hasVfx=false,hasTbd=false;
+  DATA.scenes[si].lines.forEach(l=>{const r=has(l.item); if(r&&(r.status||r.practical))done++;
+    if(isLinked(l.item))hasVfx=true;
+    if(r&&r.status==="tbd")hasTbd=true;
+    if(r&&r.status==="vfx"){hasVfx=true;shots+=r.shots||0;cost+=(r.shots||0)*itemCost(r);days+=(r.shots||0)*(r.days||0)}});
+  const sc=shas(si);
+  if(sc)(sc.shots||[]).forEach(sh=>{hasVfx=true;shots+=sh.count||0;cost+=(sh.count||0)*shotCost(sh);days+=(sh.count||0)*(sh.days||0)});
+  return {shots,cost,done,days,n,hasVfx,hasTbd,diff:sc?sc.difficulty:""};
+}
+
+/* ---------- header / strip ---------- */
+function renderHeader(){
+  const t=totals();
+  stShots.textContent=t.tShots;
+  stDays.textContent=(Math.round(t.days*10)/10)||0;
+  progress.firstElementChild.style.width=t.prog+"%";
+}
+function renderStrip(){
+  sceneList.innerHTML="";
+  const counts=DATA.scenes.map((_,i)=>sceneStat(i).shots);
+  const maxShots=Math.max(0,...counts);
+  let shown=0;
+  DATA.scenes.forEach((sc,i)=>{
+    if(stripFilter && !sceneShown(i).show) return;
+    shown++;
+    const st=sceneStat(i);
+    // 0 shots -> no tint; 1 shot -> lightest; heaviest scene -> always the darkest.
+    // curve keeps the low end readable instead of bunching everything pale.
+    let tint="", metaop=null;
+    if(st.shots>0){
+      const t=maxShots>1?(st.shots-1)/(maxShots-1):0;
+      const c=Math.pow(t,0.55);
+      const a=(0.10+0.45*c).toFixed(3);
+      tint=`linear-gradient(rgba(var(--tint-rgb),${a}),rgba(var(--tint-rgb),${a}))`;
+      metaop=(0.70+0.28*c).toFixed(2);   // deeper tint -> stronger secondary text
+    }
+    const cls=st.hasVfx?"done":st.hasTbd?"part":"none";
+    const d=document.createElement("div");
+    d.className="scene"+(i===curScene?" on":"");
+    d.style.backgroundImage=tint;
+    if(metaop) d.style.setProperty("--metaop",metaop);
+    if(st.shots) d.title=`${st.shots} VFX shot${st.shots===1?"":"s"}`;
+    d.innerHTML=`<div class="dot ${cls}"></div><div class="n">${esc(sc.num)}</div>
+      <div class="sc-h"><b>${esc(sc.location||sc.heading)}</b><span class="sc-meta">${esc(sc.ie)} ${esc(sc.tod)} · p${sc.page}</span></div>
+      ${st.diff?`<span class="diffb ${st.diff[0]}">${st.diff[0]}</span>`:""}
+      ${st.shots?`<div class="badge">${st.shots}</div>`:""}`;
+    d.onclick=()=>{gotoScene(i); selectScene(i);};
+    sceneList.appendChild(d);
+  });
+  const active=stripFilter && (filter!=="all"||elFilter);
+  scCount.textContent = active ? shown+" of "+DATA.scenes.length
+                               : DATA.scenes.length+" sc · "+DATA.pages+"p";
+  const fb=document.getElementById("btnStripFilter");
+  fb.style.color = stripFilter ? "var(--accent)" : "var(--dim2)";
+  fb.innerHTML = stripFilter
+    ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>`
+    : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>`;
+  if(stripFilter && !shown)
+    sceneList.innerHTML=`<div style="padding:16px 10px;font-size:11px;color:var(--dim2);text-align:center">No scenes match this filter.</div>`;
+}
+function gotoScene(i){
+  const h=document.getElementById("sh"+i);
+  if(h){
+    // .shead is sticky: once scrolled past it stays pinned at the container top, so
+    // scrollIntoView on it no-ops when travelling upstream. Anchor on the first
+    // ordinary block instead, then subtract the header height.
+    const first=h.nextElementSibling;
+    if(first && !first.classList.contains("shead")){
+      first.scrollIntoView({block:"start"});
+      scriptBody.scrollTop -= h.offsetHeight;
+    } else {
+      h.scrollIntoView({block:"start"});
+    }
+  }
+  setScene(i);
+}
+function setScene(i){
+  if(i===curScene) return; curScene=i;
+  [...sceneList.children].forEach((c,j)=>c.classList.toggle("on",j===i));
+  const on=sceneList.children[i]; on&&on.scrollIntoView({block:"nearest"});
+}
+
+/* ---------- script (full, continuous) ---------- */
+function lineVisible(l){
+  const r=has(l.item), st=r&&r.status;
+  if(filter==="untagged"&&(st||(r&&r.practical))) return false;
+  if(filter==="vfx"&&st!=="vfx") return false;
+  if(filter==="tbd"&&st!=="tbd") return false;
+  if(filter==="prac"&&!(r&&r.practical)) return false;
+  if(elFilter && !(r&&elMatch(r.elements||[]))) return false;
+  return true;
+}
+let matchN=0, curMatch=0;
+function rxEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") }
+function hl(escaped){
+  if(!query) return escaped;
+  return escaped.replace(new RegExp(rxEsc(esc(query)),"gi"),
+    m=>`<mark class="hl" data-mi="${matchN++}">${m}</mark>`);
+}
+function blkHtml(l){
+  const r=has(l.item)||{};
+  const linked=r.status!=="vfx" && isLinked(l.item);
+  const chip=(r.status?`<span class="chip ${r.status}">${r.status==="tbd"?"TBD":"VFX"}</span>`
+              :(linked?`<span class="chip vfx">VFX</span>`:""))
+    +(r.practical?`<span class="chip prac">PRAC</span>`:"");
+  const txt=l.type==="dialogue"?`<span class="cue">${hl(esc(l.char))}</span>${hl(esc(l.text))}`:hl(esc(l.text));
+  let sow="";
+  if(r.status==="vfx"&&(r.elements||[]).length){
+    const m=(r.methods||[]).length?`<span class="mth">  ⚙ ${esc(r.methods.join(" / "))}</span>`:"";
+    const money_=costPreview?` · ${r.shots}× ${money(itemCost(r))} = ${money(r.shots*itemCost(r))}`
+                            :` · ${r.shots} shot${r.shots===1?"":"s"}`;
+    sow=`<div class="sow">${esc(r.elements.join(" · "))}<span class="meta"> — ${r.lod}${money_}</span>${m}</div>`;
+  } else if(r.status==="tbd") sow=`<div class="sow" style="color:var(--amber)">VFX TBD${r.notes?" — "+esc(r.notes):""}</div>`;
+  return `<div class="gut"><span class="item">${l.item}</span>${chip}</div><div style="flex:1;min-width:0"><div class="body">${txt}</div>${sow}</div>`;
+}
+const blkEls={};
+function sheadMeta(si){
+  const st=sceneStat(si);
+  const chip=st.hasVfx?`<span class="chip vfx">VFX</span>`
+            :st.hasTbd?`<span class="chip tbd">TBD</span>`:"";
+  return `${chip}<span class="pg">p${DATA.scenes[si].page}${st.shots?" · "+st.shots+" shot"+(st.shots===1?"":"s"):""}</span>`;
+}
+function updateSheadMeta(si){
+  const el=document.getElementById("shm"+si);
+  if(el) el.innerHTML=sheadMeta(si);
+}
+// one rule for both panes: a scene survives the filters if any of its lines match,
+// or if its scene shots do (those aren't lines, so they'd vanish otherwise)
+function sceneShown(si){
+  const vis=DATA.scenes[si].lines.filter(lineVisible);
+  const sShots=(shas(si)||{}).shots||[];
+  const scMatch=sShots.length>0
+    && (filter==="all"||filter==="vfx")
+    && (!elFilter || sShots.some(sh=>elMatch(sh.elements||[])));
+  const anyFilter = filter!=="all" || elFilter;
+  return {vis, scMatch, sShots, show: vis.length>0 || scMatch || !anyFilter};
+}
+function renderScript(){
+  lines.innerHTML=""; Object.keys(blkEls).forEach(k=>delete blkEls[k]); matchN=0;
+  DATA.scenes.forEach((sc,si)=>{
+    const {vis,scMatch,sShots,show}=sceneShown(si);
+    if(!show) return;
+    // a surviving scene reads in full — the filter picks scenes, not lines, so you keep
+    // the surrounding context. "Untagged" is the exception: finding specific unreviewed
+    // lines is the whole point of it.
+    const rows = filter==="untagged" ? vis : DATA.scenes[si].lines;
+    const h=document.createElement("div");
+    h.className="shead"+(si===sceneEdit?" sel":""); h.id="sh"+si; h.dataset.si=si;
+    h.innerHTML=`<span class="sn">${esc(sc.num)}</span><b>${esc(sc.heading)}</b>`
+      +`<span id="shm${si}" style="margin-left:auto;display:flex;gap:7px;align-items:center">${sheadMeta(si)}</span>`;
+    h.onclick=()=>selectScene(si);
+    lines.appendChild(h);
+    if(!vis.length&&scMatch){
+      const note=document.createElement("div");
+      note.className="blk";
+      note.style.cssText="cursor:pointer;padding-left:70px";
+      note.innerHTML='<div class="sow" style="color:var(--dim2)">'+sShots.length+
+        ' scene shot'+(sShots.length===1?"":"s")+' — not tied to a script line</div>';
+      note.onclick=()=>{selectScene(si)};
+      lines.appendChild(note);
+    }
+    rows.forEach(l=>{
+      const d=document.createElement("div");
+      d.className=`blk t-${l.type}`+(sel.includes(l.item)?" sel":"");
+      d.innerHTML=blkHtml(l);
+      d.draggable=true;
+      d.ondragstart=ev=>{
+        ev.dataTransfer.setData("text/vfx-item", String(l.item));
+        ev.dataTransfer.effectAllowed="copy";
+        d.classList.add("dragging");
+      };
+      d.ondragend=()=>d.classList.remove("dragging");
+      d.onclick=e=>click(l.item,e);
+      blkEls[l.item]=d;
+      lines.appendChild(d);
+    });
+  });
+}
+function patch(items){ // update only touched blocks + header/strip
+  if(query){ renderScript(); refreshSel(); markCur(); renderHeader(); renderStrip(); return }
+  const scenesTouched=new Set();
+  items.forEach(it=>{
+    const el=blkEls[it]; if(!el) return;
+    const l=ALL.find(x=>x.item===it);
+    el.innerHTML=blkHtml(l);
+    el.className=`blk t-${l.type}`+(sel.includes(it)?" sel":"");
+    scenesTouched.add(l._s);
+  });
+  scenesTouched.forEach(updateSheadMeta);
+  renderHeader(); renderStrip();
+}
+function refreshShead(){
+  document.querySelectorAll(".shead.sel").forEach(h=>h.classList.remove("sel"));
+  if(sceneEdit!==null){const h=document.getElementById("sh"+sceneEdit); h&&h.classList.add("sel")}
+}
+function selectScene(si){
+  sceneEdit=si; activeShot=-1; sel=[]; shotElQ=""; refreshSel(); setScene(si); refreshShead(); renderInspector();
+}
+function bulkSelectScene(si){
+  sceneEdit=null; refreshShead();
+  sel=DATA.scenes[si].lines.filter(lineVisible).map(l=>l.item);
+  anchor=sel[0]||null;
+  refreshSel(); renderInspector();
+}
+let selPrev=[];
+function refreshSel(){
+  selPrev.forEach(it=>{const e=blkEls[it]; e&&e.classList.remove("sel")});
+  sel.forEach(it=>{const e=blkEls[it]; e&&e.classList.add("sel")});
+  selPrev=sel.slice();
+}
+function click(item,e){
+  // a line dragged into a shot (and not tagged on its own) belongs to that shot —
+  // send the click there instead of opening an empty line inspector
+  const own=has(item);
+  if(!e.shiftKey && !e.metaKey && !e.ctrlKey && !(own&&(own.status||own.practical))){
+    const link=shotForLine(item);
+    if(link){
+      const l2=ALL.find(x=>x.item===item); setScene(l2._s);
+      sel=[]; refreshSel();
+      sceneEdit=link.si; activeShot=link.idx; shotElQ="";
+      refreshShead(); renderInspector();
+      const card=inspBody.querySelector(".shot.open");
+      card&&card.scrollIntoView({block:"center"});
+      return;
+    }
+  }
+  sceneEdit=null; refreshShead();
+  const l=ALL.find(x=>x.item===item); setScene(l._s);
+  if(e.shiftKey&&anchor!==null){
+    const vis=ALL.filter(lineVisible).map(x=>x.item);
+    const a=vis.indexOf(anchor),b=vis.indexOf(item);
+    sel=vis.slice(Math.min(a,b),Math.max(a,b)+1);
+  } else if(e.metaKey||e.ctrlKey){
+    sel.includes(item)?sel=sel.filter(x=>x!==item):sel.push(item); anchor=item;
+  } else { sel=[item]; anchor=item }
+  refreshSel(); renderInspector();
+}
+
+function markCur(){
+  document.querySelectorAll("mark.hl.cur").forEach(m=>m.classList.remove("cur"));
+  const nav=document.getElementById("srchNav");
+  nav.classList.toggle("on", !!query && matchN>0);
+  document.getElementById("srchCount").textContent=matchN?`${curMatch+1}/${matchN}`:"0/0";
+  if(!query||!matchN) return;
+  const m=lines.querySelector(`mark.hl[data-mi="${curMatch}"]`);
+  if(m){ m.classList.add("cur"); m.scrollIntoView({block:"center"}); }
+}
+function goMatch(d){
+  if(!matchN) return;
+  curMatch=(curMatch+d+matchN)%matchN;
+  markCur();
+}
+
+/* click empty space in the script pane -> clear selection, show the help panel */
+scriptBody.addEventListener("click",e=>{
+  if(e.target.closest(".blk, .shead")) return;
+  if(!sel.length && sceneEdit===null) return;
+  sel=[]; sceneEdit=null; shotElQ=""; lineElQ="";
+  refreshShead(); refreshSel(); renderInspector();
+});
+
+/* scroll spy */
+scriptBody.addEventListener("scroll",()=>{
+  const heads=lines.querySelectorAll(".shead");
+  const top=scriptBody.getBoundingClientRect().top;
+  let cur=0;
+  for(const h of heads){ if(h.getBoundingClientRect().top-top<=8) cur=+h.dataset.si; else break }
+  setScene(cur);
+},{passive:true});
+
+/* ---------- inspector ---------- */
+function renderInspector(){
+  if(sceneEdit!==null){ renderSceneEditor(sceneEdit); return }
+  if(!sel.length){
+    inspBody.innerHTML=`<div class="empty">
+      Click a line to break it down.<br>Click a scene heading to select the whole scene.<br><br>
+      <kbd>↑</kbd><kbd>↓</kbd> move &nbsp; <kbd>⇧</kbd>+click range<br>
+      <kbd>T</kbd> tbd &nbsp; <kbd>V</kbd> vfx shot &nbsp; <kbd>P</kbd> practical<br>
+      <kbd>1</kbd>–<kbd>9</kbd> shot count &nbsp; <kbd>⏎</kbd> next untagged<br>
+      <kbd>E</kbd> element search &nbsp; <kbd>⌘S</kbd> export</div>`; return;
+  }
+  const multi=sel.length>1, r=rec(sel[0]); if(!r.methods)r.methods=[];
+  const line=ALL.find(l=>l.item===sel[0]);
+  const sg=suggest(r), lod=r.lod||sg.lod, cost=itemCost(r);
+  const cats=catsOf();
+  inspBody.innerHTML=`
+  <div class="sec" style="background:var(--bg2)">
+    <label>${multi?sel.length+" lines · sc "+esc(DATA.scenes[line._s].num):"Item "+sel[0]+" · p"+line.page+" · sc "+esc(DATA.scenes[line._s].num)}</label>
+    <div style="font-family:'Courier New',monospace;font-size:11.5px;color:var(--dim);max-height:62px;overflow:auto">
+      ${multi?"Bulk edit — applies to all selected lines.":esc((line.char?line.char+": ":"")+line.text)}</div>
+  </div>
+  ${(()=>{const lk=shotForLine(sel[0]);
+     return lk?`<div class="sec" style="padding-top:7px;padding-bottom:7px">
+       <button class="btn" data-gotoshot style="width:100%;font-size:11px">
+         ↳ Also in scene shot ${esc(sceneShotId(lk.si,lk.idx))} — open it</button></div>`:""})()}
+  <div class="sec"><label>Status</label>
+    <div class="seg">
+      <button data-s="tbd" class="${r.status==="tbd"?"on":""}">TBD</button>
+      <button data-s="vfx" class="${r.status==="vfx"?"on":""}">VFX SHOT</button>
+      <button data-prac class="${r.practical?"on":""}">PRACTICAL</button>
+    </div>
+    <div style="font-size:10px;color:var(--dim2);margin-top:5px">Practical can be combined with VFX Shot.</div>
+  </div>
+  <div id="vfxOnly" style="${r.status==="vfx"?"":"opacity:.42;pointer-events:none"}">
+    <div class="sec"><label>Scope of work</label>
+      <div class="picked">${(r.elements||[]).map(n=>`<div><span>${esc(n)}</span><small style="color:var(--dim2)">${findEl(n)?(costPreview?findEl(n).lod+" · "+money(findEl(n).cost):findEl(n).lod):""}</small><button data-rm="${esc(n)}">×</button></div>`).join("")||`<div style="background:none;border:1px dashed var(--line);color:var(--dim2);justify-content:center">pick elements below</div>`}</div>
+      <input id="elSearch" placeholder="Search elements…  (E)" style="width:100%" value="${esc(lineElQ)}">
+      ${dropHtml(lineElQ,r.elements||[],"data-eldrop")}
+      <div class="elib">${(u=>cats.map(c=>{
+        const els=elsIn(c);
+        return `<div class="ecat" data-cat="${esc(c)}">${esc(c)}</div>`+els.map(e=>
+          `<button class="el ${(r.elements||[]).includes(e.name)?"on":""}" data-el="${esc(e.name)}" data-n="${esc((c+" "+e.name).toLowerCase())}">${esc(e.name)}${u[e.name]?` <small>×${u[e.name].n}</small>`:""}</button>`).join("")
+      }).join(""))(elUsage())}</div>
+    </div>
+    <div class="sec"><label>Shooting methodology</label>
+      <div class="picked">${(r.methods||[]).map(n=>`<div class="m"><span>${esc(n)}</span><button data-rmm="${esc(n)}">×</button></div>`).join("")}</div>
+      <div>${METHODS.map(m=>`<button class="el ${(r.methods||[]).includes(m)?"mon":""}" data-mth="${esc(m)}">${esc(m)}</button>`).join("")}</div>
+    </div>
+    <div class="sec"><label>LOD</label>
+      <div class="seg">${LODS.map(l=>`<button data-l="${l}" class="${lod===l?"on":""}">${l}</button>`).join("")}</div>
+    </div>
+    <div class="sec"><label>Shots &amp; cost</label>
+      <div class="row">
+        <button class="btn" id="sMinus">−</button>
+        <input id="shots" type="number" min="0" value="${r.shots||0}" style="width:56px;text-align:center">
+        <button class="btn" id="sPlus">+</button>
+        <span style="color:var(--dim2)">×</span>
+        <input id="cost" type="number" step="50" value="${cost}" style="flex:1">
+        <button class="btn" id="lock" title="Lock cost" style="${r.lock?"color:var(--amber);border-color:var(--amber)":""}">${r.lock?"🔒":"🔓"}</button>
+      </div>
+      <div class="tiers">${TIERS.map(t=>`<button data-t="${t}">${t}</button>`).join("")}</div>
+      <div class="row" style="margin-top:7px">
+        <span style="font-size:10.5px;color:var(--dim2)">Est. days / shot</span>
+        <input id="days" type="number" min="0" step="0.5" value="${r.days||0}" style="width:70px;text-align:center">
+        <span style="font-size:10.5px;color:var(--dim2)">artist-days${(r.shots||0)>1?` — ${Math.round((r.shots||0)*(r.days||0)*10)/10} total`:""}</span>
+      </div>
+      ${r.elements.length?`<div style="font-size:10.5px;color:var(--dim2);margin-top:5px">Suggested: ${sg.lod}${costPreview?" · "+money(sg.cost):""}</div>`:""}
+    </div>
+  </div>
+  <div class="sec"><label>Notes / assumptions</label>
+    <textarea id="notes" rows="3" style="width:100%" placeholder="e.g. Assumes practical location, plate cleanup only">${esc(r.notes||"")}</textarea>
+    <div class="phr">${PHRASES.map(p=>`<button data-p="${esc(p)}">${esc(p)}</button>`).join("")}</div>
+  </div>
+  ${r.status==="vfx"&&costPreview?`<div class="total"><span style="color:var(--dim2)">Line total</span><b>${money((r.shots||0)*(cost||0))}</b></div>`:""}
+  <div class="sec"><button class="btn primary" id="applyNext" style="width:100%">Next untagged ⏎</button></div>`;
+  wire(r);
+}
+const DIFFS=["Low","Medium","High"];
+function sceneShotId(si,idx){ return DATA.scenes[si].num+"-"+String((idx+1)*10).padStart(3,"0") }
+function renderSceneEditor(si){
+  if(sceneBaseline[si]===undefined) sceneBaseline[si]=JSON.stringify(S.scenes[si]||null);
+  const sc=DATA.scenes[si], d=srec(si), st=sceneStat(si);
+  const cats=catsOf();
+  const shotsHtml=(d.shots||[]).map((sh,i)=>{
+    const open=i===activeShot, cost=shotCost(sh), lod=shotLod(sh);
+    const head=`<div class="shot-h" data-open="${i}" draggable="true" data-drag="${i}">
+      <span class="grip" title="Drag to reorder">⠿</span>
+      <span style="color:var(--dim2);font-size:9px;width:8px">${open?"▾":"▸"}</span>
+      <span class="id">${esc(sceneShotId(si,i))}</span>
+      <span class="lbl">${esc(sh.label||"Untitled shot")}</span>
+      ${costPreview?`<span class="cost">${sh.count>1?sh.count+"× ":""}${money(cost)}</span>`:""}
+      <button class="del" data-delshot="${i}" title="Delete shot">×</button></div>`;
+    if(!open){
+      const mini=sh.img?`<img class="mini" src="${sh.img}">`:"";
+      const desc=sh.desc?`<span class="d">${esc(sh.desc)}</span>`:"";
+      const els=(sh.elements||[]).length?`<span class="e">${esc(sh.elements.join(" · "))}</span>`:"";
+      return `<div class="shot">${head}${(desc||els||mini)?`<div class="shot-sum">${mini}${desc}${els}</div>`:""}</div>`;
+    }
+    return `<div class="shot open">${head}<div class="shot-b">
+      <div class="sec"><label>Storyboard / reference</label>
+        ${sh.img?`<div class="thumbwrap"><img src="${sh.img}"><button class="rmimg" data-rmimg title="Remove image">×</button></div>`
+          :`<div class="dropz" data-dropz>Drop storyboard here — or click to browse</div>`}</div>
+      <div class="sec"><label>Label</label>
+        <input data-shf="label" value="${esc(sh.label||"")}" placeholder="e.g. Creature reveal — face morph" style="width:100%"></div>
+      <div class="sec"><label>Shot description <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--dim2)">— drag script lines in</span></label>
+        <textarea data-shf="desc" data-shdesc rows="3" style="width:100%" placeholder="What happens in the shot — or drag a script line here">${esc(sh.desc||"")}</textarea>
+        ${(sh.lines||[]).length?`<div style="margin-top:4px;font-size:10px;color:var(--dim2)">Linked lines: ${(sh.lines||[]).map(it=>`<button data-unlink="${it}" style="color:var(--violet);text-decoration:underline">${it} ×</button>`).join(" · ")}</div>`:""}</div>
+      <div class="sec"><label>Scope of work</label>
+        <div class="picked">${(sh.elements||[]).map(n=>`<div><span>${esc(n)}</span><small style="color:var(--dim2)">${findEl(n)?(costPreview?findEl(n).lod+" · "+money(findEl(n).cost):findEl(n).lod):""}</small><button data-shrm="${esc(n)}">×</button></div>`).join("")||`<div style="background:none;border:1px dashed var(--line);color:var(--dim2);justify-content:center">pick elements below</div>`}</div>
+        <input data-shsearch placeholder="Search elements…" style="width:100%" value="${esc(shotElQ)}">
+        ${dropHtml(shotElQ,sh.elements||[],"data-shdrop")}
+        <div class="elib">${(u=>cats.map(c=>{
+          const els=elsIn(c);
+          return `<div class="ecat">${esc(c)}</div>`+els.map(e=>
+            `<button class="el ${(sh.elements||[]).includes(e.name)?"on":""}" data-shel="${esc(e.name)}">${esc(e.name)}${u[e.name]?` <small>×${u[e.name].n}</small>`:""}</button>`).join("")
+        }).join(""))(elUsage())}</div></div>
+      <div class="sec"><label>Shooting methodology</label>
+        <div>${METHODS.map(m=>`<button class="el ${(sh.methods||[]).includes(m)?"mon":""}" data-shmth="${esc(m)}">${esc(m)}</button>`).join("")}</div></div>
+      <div class="sec"><label>LOD · count · cost/shot · days</label>
+        <div class="row">
+          <div class="seg" style="flex:1">${LODS.map(l=>`<button data-shlod="${l}" class="${lod===l?"on":""}">${l}</button>`).join("")}</div>
+          <input data-shf="count" type="number" min="1" value="${sh.count||1}" style="width:52px;text-align:center" title="Shot count">
+          <input data-shf="cost" type="number" step="50" value="${cost}" style="width:80px" title="Cost per shot">
+          <button class="btn" data-shlock style="${sh.lock?"color:var(--amber);border-color:var(--amber)":""}">${sh.lock?"🔒":"🔓"}</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <span style="font-size:10.5px;color:var(--dim2)">Est. days / shot</span>
+          <input data-shf="days" type="number" min="0" step="0.5" value="${sh.days||0}" style="width:70px;text-align:center">
+          <span style="font-size:10.5px;color:var(--dim2)">artist-days${(sh.count||1)>1?` — ${Math.round((sh.count||1)*(sh.days||0)*10)/10} total`:""}</span>
+        </div>
+        <div class="tiers">${TIERS.map(t=>`<button data-sht="${t}">${t}</button>`).join("")}</div></div>
+      <div class="sec"><label>Shot notes</label>
+        <textarea data-shf="notes" rows="2" style="width:100%">${esc(sh.notes||"")}</textarea>
+        <div class="phr">${PHRASES.map(p=>`<button data-shp="${esc(p)}">${esc(p)}</button>`).join("")}</div></div>
+    </div></div>`;
+  }).join("");
+  const lineShots=sc.lines.filter(l=>{const r=has(l.item); return r&&(r.status==="vfx"||r.practical)});
+  const linkedRefs=(d.shots||[]).flatMap(s=>s.lines||[]);
+  const lineShotsHtml=lineShots.length?`<div class="linkhdr">From script lines (${lineShots.length})</div>`+
+    lineShots.map(l=>{
+      const r=has(l.item);
+      const desc=(l.char?l.char+": ":"")+l.text;
+      const els=(r.elements||[]).length?`<span class="e">${esc(r.elements.join(" · "))}</span>`:"";
+      return `<div class="shot linked" data-goline="${l.item}">
+        <div class="shot-h">
+          <span style="width:8px"></span>
+          <span class="id">Line ${l.item}${r.practical?' <span style="color:var(--badge-fg)">·PRAC</span>':""}</span>
+          <span class="lbl">${esc(desc.slice(0,40))}${desc.length>40?"…":""}</span>
+          ${costPreview?`<span class="cost">${(r.shots||0)>1?(r.shots+"× "):""}${money((r.shots||0)*itemCost(r))}</span>`:""}
+        </div>
+        <div class="shot-sum"><span class="d">${esc(desc)}</span>${els}</div></div>`;
+    }).join(""):"";
+  inspBody.innerHTML=`
+  <div class="sec" style="background:var(--bg2)">
+    <label>Scene ${esc(sc.num)} · p${sc.page} · ${st.shots} shot${st.shots===1?"":"s"}${st.days?" · "+(Math.round(st.days*10)/10)+" days":""}${costPreview?" · "+money(st.cost):""}</label>
+    <div style="font-family:'Courier New',monospace;font-size:12px">${esc(sc.heading)}</div>
+  </div>
+  <div class="sec"><label>Difficulty</label>
+    <div class="seg">${DIFFS.map(x=>`<button data-diff="${x}" class="${d.difficulty===x?"on":""}" data-s="${x==="Low"?"vfx":x==="Medium"?"tbd":"novfx"}" style="${d.difficulty===x?(x==="Low"?"background:var(--green);border-color:var(--green)":x==="Medium"?"background:var(--amber);border-color:var(--amber)":"background:var(--red);border-color:var(--red)")+";color:var(--onfill)":""}">${x}</button>`).join("")}</div>
+  </div>
+  <div class="sec"><label>Scene notes — general VFX for this scene</label>
+    <textarea id="scNotes" rows="3" style="width:100%" placeholder="Overall approach, what this scene needs, on-set requirements…">${esc(d.notes||"")}</textarea>
+    <div class="phr">${PHRASES.map(p=>`<button data-scp="${esc(p)}">${esc(p)}</button>`).join("")}</div>
+  </div>
+  <div class="sec"><label>Shots in this scene</label>
+    ${shotsHtml||`<div class="empty" style="padding:12px">No scene shots yet.</div>`}
+    <button class="btn primary" id="addShot" style="width:100%;margin-top:4px">+ Add shot</button>
+    ${lineShotsHtml}
+  </div>
+  <div class="sec">
+    <button class="btn" id="bulkLines" style="width:100%">Select all ${DATA.scenes[si].lines.length} lines instead (bulk line-tag)</button>
+  </div>`;
+  wireScene(si);
+}
+function sceneSave(si){
+  const before=sceneBaseline[si];
+  const now=JSON.stringify(S.scenes[si]||null);
+  if(before!==undefined && before!==now){
+    const sc=DATA.scenes[si];
+    pushUndo({label:"Scene "+(sc?sc.num:si)+" edit", scene:si,
+      data:before==="null"?undefined:JSON.parse(before)});
+  }
+  sceneBaseline[si]=now;
+  save(); renderHeader(); renderStrip(); updateSheadMeta(si); }
+function wireScene(si){
+  const d=srec(si);
+  inspBody.querySelectorAll("[data-diff]").forEach(b=>b.onclick=()=>{
+    d.difficulty=d.difficulty===b.dataset.diff?"":b.dataset.diff; sceneSave(si); renderSceneEditor(si)});
+  const sn=inspBody.querySelector("#scNotes");
+  sn.onchange=()=>{d.notes=sn.value; sceneSave(si)};
+  inspBody.querySelectorAll("[data-scp]").forEach(b=>b.onclick=()=>{
+    d.notes=(d.notes?d.notes.replace(/\.?\s*$/,". "):"")+b.dataset.scp; sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelector("#addShot").onclick=()=>{
+    d.shots.push({label:"",desc:"",elements:[],methods:[],lod:"",count:1,cost:0,days:0,lock:false,notes:"",lines:[]});
+    activeShot=d.shots.length-1; sceneSave(si); renderSceneEditor(si);
+    const inp=inspBody.querySelector('[data-shf="label"]'); inp&&inp.focus()};
+  inspBody.querySelector("#bulkLines").onclick=()=>bulkSelectScene(si);
+  inspBody.querySelectorAll("[data-open]").forEach(h=>h.onclick=e=>{
+    if(e.target.dataset.delshot!==undefined) return;
+    const i=+h.dataset.open;
+    activeShot = (activeShot===i ? -1 : i);   // click again to collapse
+    renderSceneEditor(si)});
+  inspBody.querySelectorAll("[data-drag]").forEach(h=>{
+    const card=h.closest(".shot");
+    h.ondragstart=e=>{
+      e.dataTransfer.setData("text/vfx-shot", h.dataset.drag);
+      e.dataTransfer.effectAllowed="move";
+      card.classList.add("dragging");
+    };
+    h.ondragend=()=>{ card.classList.remove("dragging");
+      inspBody.querySelectorAll(".shot").forEach(c=>c.classList.remove("dropbefore","dropafter")); };
+  });
+  inspBody.querySelectorAll(".shot:not(.linked)").forEach(card=>{
+    const h=card.querySelector("[data-drag]"); if(!h) return;
+    const idx=+h.dataset.drag;
+    card.ondragover=e=>{
+      if(![...e.dataTransfer.types].includes("text/vfx-shot")) return;
+      e.preventDefault(); e.dataTransfer.dropEffect="move";
+      const r=card.getBoundingClientRect();
+      const after=(e.clientY-r.top)>r.height/2;
+      card.classList.toggle("dropbefore",!after);
+      card.classList.toggle("dropafter",after);
+    };
+    card.ondragleave=()=>card.classList.remove("dropbefore","dropafter");
+    card.ondrop=e=>{
+      if(![...e.dataTransfer.types].includes("text/vfx-shot")) return;
+      e.preventDefault();
+      const after=card.classList.contains("dropafter");
+      card.classList.remove("dropbefore","dropafter");
+      const from=+e.dataTransfer.getData("text/vfx-shot");
+      let to=idx+(after?1:0);
+      if(from<to) to--;
+      if(from===to) return;
+      const [moved]=d.shots.splice(from,1);
+      d.shots.splice(to,0,moved);
+      activeShot=-1;
+      sceneSave(si); renderSceneEditor(si);
+    };
+  });
+  inspBody.querySelectorAll("[data-delshot]").forEach(b=>b.onclick=e=>{e.stopPropagation();
+    d.shots.splice(+b.dataset.delshot,1); activeShot=-1;
+    sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelectorAll("[data-goline]").forEach(c=>c.onclick=()=>{
+    const it=+c.dataset.goline;
+    sceneEdit=null; refreshShead(); sel=[it]; anchor=it; refreshSel(); renderInspector();
+    const el=blkEls[it]; el&&el.scrollIntoView({block:"center"});
+  });
+  const sh=d.shots[activeShot]; if(!sh) return;
+  inspBody.querySelectorAll("[data-shf]").forEach(inp=>inp.onchange=()=>{
+    const f=inp.dataset.shf;
+    sh[f]=(f==="count"||f==="cost"||f==="days")?(+inp.value||0):inp.value;
+    if(f==="cost")sh.lock=true;
+    if(f==="count"&&sh.count<1)sh.count=1;
+    if(f==="days"&&sh.days<0)sh.days=0;
+    sceneSave(si); if(f!=="label"&&f!=="desc"&&f!=="notes")renderSceneEditor(si);
+    else {const lbl=inspBody.querySelector(".shot.open .lbl"); if(f==="label"&&lbl)lbl.textContent=sh.label||"Untitled shot"}});
+  const toggleShotEl=n=>{
+    sh.elements.includes(n)?sh.elements=sh.elements.filter(y=>y!==n):sh.elements.push(n);
+    sceneSave(si); renderSceneEditor(si);
+  };
+  inspBody.querySelectorAll("[data-shel]").forEach(b=>b.onclick=()=>toggleShotEl(b.dataset.shel));
+  inspBody.querySelectorAll("[data-shrm]").forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    sh.elements=(sh.elements||[]).filter(n=>n!==b.dataset.shrm);
+    sceneSave(si); renderSceneEditor(si);
+  });
+  inspBody.querySelectorAll("[data-shdrop]").forEach(b=>b.onclick=()=>{
+    toggleShotEl(b.dataset.shdrop); refocus("[data-shsearch]")});
+  const dsc=inspBody.querySelector("[data-shdesc]");
+  if(dsc){
+    dsc.ondragover=e=>{
+      if(![...e.dataTransfer.types].includes("text/vfx-item")) return;
+      e.preventDefault(); e.dataTransfer.dropEffect="copy"; dsc.classList.add("descdrop");
+    };
+    dsc.ondragleave=()=>dsc.classList.remove("descdrop");
+    dsc.ondrop=e=>{
+      e.preventDefault(); dsc.classList.remove("descdrop");
+      const it=+e.dataTransfer.getData("text/vfx-item"); if(!it) return;
+      const l=ALL.find(x=>x.item===it); if(!l) return;
+      const line=(l.char?l.char+": ":"")+l.text;
+      sh.lines=sh.lines||[];
+      if(!sh.lines.includes(it)){
+        sh.lines.push(it);
+        sh.desc=(sh.desc||"").trim();
+        sh.desc=sh.desc?sh.desc+"\n"+line:line;
+      }
+      sceneSave(si); renderSceneEditor(si); patch([it]);
+    };
+  }
+  inspBody.querySelectorAll("[data-unlink]").forEach(b=>b.onclick=()=>{
+    const it=+b.dataset.unlink;
+    sh.lines=(sh.lines||[]).filter(x=>x!==it);
+    sceneSave(si); renderSceneEditor(si); patch([it]);
+  });
+  const sq2=inspBody.querySelector("[data-shsearch]");
+  if(sq2){
+    sq2.oninput=()=>{ shotElQ=sq2.value; renderSceneEditor(si); refocus("[data-shsearch]") };
+    sq2.onkeydown=e=>{
+      if(e.key==="Escape"){ shotElQ=""; renderSceneEditor(si); refocus("[data-shsearch]") }
+      else if(e.key==="Enter"){ const m=elMatches(shotElQ)[0];
+        if(m){ e.preventDefault(); toggleShotEl(m.name); refocus("[data-shsearch]") } }
+    };
+    const v=shotElQ.toLowerCase();
+    if(v) inspBody.querySelectorAll("[data-shel]").forEach(b=>
+      b.style.display=(b.dataset.shel+" "+(findEl(b.dataset.shel)||{}).cat).toLowerCase().includes(v)?"":"none");
+  }
+  inspBody.querySelectorAll("[data-shmth]").forEach(b=>b.onclick=()=>{
+    const n=b.dataset.shmth; if(!sh.methods)sh.methods=[];
+    sh.methods.includes(n)?sh.methods=sh.methods.filter(y=>y!==n):sh.methods.push(n);
+    sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelectorAll("[data-shlod]").forEach(b=>b.onclick=()=>{sh.lod=b.dataset.shlod; sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelectorAll("[data-sht]").forEach(b=>b.onclick=()=>{sh.cost=+b.dataset.sht; sh.lock=true; sceneSave(si); renderSceneEditor(si)});
+  const lk=inspBody.querySelector("[data-shlock]");
+  lk&&(lk.onclick=()=>{sh.lock=!sh.lock; if(!sh.lock)sh.cost=0; sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelectorAll("[data-shp]").forEach(b=>b.onclick=()=>{
+    sh.notes=(sh.notes?sh.notes.replace(/\.?\s*$/,". "):"")+b.dataset.shp; sceneSave(si); renderSceneEditor(si)});
+  const dz=inspBody.querySelector("[data-dropz]");
+  if(dz){
+    const take=file=>{
+      if(!file||!file.type.startsWith("image/")) return;
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1600, sc=Math.min(1,MAX/img.width);
+        const cv=document.createElement("canvas");
+        cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+        cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+        sh.img=cv.toDataURL("image/jpeg",0.82);
+        URL.revokeObjectURL(img.src);
+        sceneSave(si); renderSceneEditor(si);
+      };
+      img.src=URL.createObjectURL(file);
+    };
+    dz.onclick=()=>{
+      const i=document.createElement("input"); i.type="file"; i.accept="image/*";
+      i.onchange=()=>take(i.files[0]); i.click();
+    };
+    dz.ondragover=e=>{e.preventDefault();dz.classList.add("over")};
+    dz.ondragleave=()=>dz.classList.remove("over");
+    dz.ondrop=e=>{e.preventDefault();dz.classList.remove("over");take(e.dataTransfer.files[0])};
+  }
+  const ri=inspBody.querySelector("[data-rmimg]");
+  ri&&(ri.onclick=e=>{e.stopPropagation(); delete sh.img; sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelectorAll(".thumbwrap img, .shot-sum img.mini").forEach(im=>{
+    im.onclick=e=>{
+      e.stopPropagation();
+      const card=im.closest(".shot"), i=card?+card.querySelector("[data-drag]").dataset.drag:activeShot;
+      const s=d.shots[i]||sh;
+      lightbox(im.src,[s.label,s.desc].filter(Boolean).join(" — "));
+    };
+  });
+}
+/* ---------- undo / history ----------
+   Snapshots capture only the touched slice (line records or one scene), so the
+   stack stays light even with storyboards. Memory-only; a reload clears it. */
+const UNDO_MAX=100;
+let undoStack=[], redoStack=[], sceneBaseline={};
+const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
+function pushUndo(entry){
+  entry.t=Date.now(); entry.review=clone(S.review);
+  undoStack.push(entry); redoStack=[];
+  if(undoStack.length>UNDO_MAX) undoStack.shift();
+  updateHistBtn();
+}
+function snapItems(keys,label){
+  pushUndo({label, items:Object.fromEntries(keys.map(k=>[k,clone(S.items[k])]))});
+}
+function captureOf(entry){
+  const cur={label:entry.label,review:clone(S.review),t:Date.now()};
+  if(entry.items) cur.items=Object.fromEntries(Object.keys(entry.items).map(k=>[k,clone(S.items[k])]));
+  if("scene" in entry){ cur.scene=entry.scene; cur.data=clone(S.scenes[entry.scene]) }
+  if(entry.full) cur.full=clone({items:S.items,scenes:S.scenes});
+  return cur;
+}
+function restoreEntry(e){
+  if(e.full){ S.items=clone(e.full.items); S.scenes=clone(e.full.scenes); }
+  if(e.items) Object.entries(e.items).forEach(([k,v])=>{ if(v===undefined) delete S.items[k]; else S.items[k]=v });
+  if("scene" in e){ if(e.data===undefined) delete S.scenes[e.scene]; else S.scenes[e.scene]=e.data }
+  if(e.review) S.review=e.review;
+  sceneBaseline={}; linkedSet=null;
+  save(); sel=[]; sceneEdit=null; refreshShead(); renderAll();
+}
+function doUndo(){
+  const e=undoStack.pop(); if(!e) return;
+  redoStack.push(captureOf(e)); restoreEntry(e); updateHistBtn();
+  toast("Undid: "+e.label);
+}
+function doRedo(){
+  const e=redoStack.pop(); if(!e) return;
+  undoStack.push(captureOf(e)); restoreEntry(e); updateHistBtn();
+  toast("Redid: "+e.label);
+}
+function updateHistBtn(){
+  const b=document.getElementById("btnHist");
+  b.style.opacity=undoStack.length?"1":".45";
+  b.title=undoStack.length?("Undo history — last: "+undoStack[undoStack.length-1].label):"No actions yet";
+}
+function ago(t){ const s=Math.round((Date.now()-t)/1000);
+  return s<60?s+"s ago":s<3600?Math.round(s/60)+"m ago":Math.round(s/3600)+"h ago" }
+
+function apply(fn){
+  snapItems(sel.map(String), sel.length>1?("Edit "+sel.length+" lines"):("Edit line "+sel[0]));
+  sel.forEach(it=>fn(rec(it))); save(); patch(sel); renderInspector()
+}
+function wire(r){
+  inspBody.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>setStatus(b.dataset.s));
+  const gs=inspBody.querySelector("[data-gotoshot]");
+  gs&&(gs.onclick=()=>{
+    const lk=shotForLine(sel[0]); if(!lk) return;
+    sel=[]; refreshSel(); sceneEdit=lk.si; activeShot=lk.idx; refreshShead(); renderInspector();
+    const card=inspBody.querySelector(".shot.open"); card&&card.scrollIntoView({block:"center"});
+  });
+  const pb=inspBody.querySelector("[data-prac]");
+  pb&&(pb.onclick=()=>apply(x=>x.practical=!x.practical));
+  inspBody.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>apply(x=>x.lod=b.dataset.l));
+  inspBody.querySelectorAll("[data-rm]").forEach(b=>b.onclick=e=>{e.stopPropagation();apply(x=>x.elements=x.elements.filter(n=>n!==b.dataset.rm))});
+  inspBody.querySelectorAll("[data-rmm]").forEach(b=>b.onclick=e=>{e.stopPropagation();apply(x=>x.methods=(x.methods||[]).filter(n=>n!==b.dataset.rmm))});
+  inspBody.querySelectorAll("[data-el]").forEach(b=>b.onclick=()=>{
+    const n=b.dataset.el;
+    apply(x=>{x.status="vfx"; if(!x.shots)x.shots=1;
+      x.elements.includes(n)?x.elements=x.elements.filter(y=>y!==n):x.elements.push(n);
+      if(!x.lock){const g=suggest(x); x.cost=g.cost; x.lod=g.lod}});
+  });
+  inspBody.querySelectorAll("[data-mth]").forEach(b=>b.onclick=()=>{
+    const n=b.dataset.mth;
+    apply(x=>{if(!x.methods)x.methods=[];
+      x.methods.includes(n)?x.methods=x.methods.filter(y=>y!==n):x.methods.push(n)});
+  });
+  inspBody.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>apply(x=>{x.cost=+b.dataset.t;x.lock=true}));
+  inspBody.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>apply(x=>{
+    x.notes=(x.notes?x.notes.replace(/\.?\s*$/,". "):"")+b.dataset.p}));
+  const q=inspBody.querySelector("#elSearch");
+  if(q){
+    q.oninput=()=>{ lineElQ=q.value; renderInspector(); refocus("#elSearch") };
+    q.onkeydown=e=>{
+      if(e.key==="Escape"){ lineElQ=""; renderInspector(); refocus("#elSearch") }
+      else if(e.key==="Enter"){ const m=elMatches(lineElQ)[0];
+        if(m){ e.preventDefault(); toggleEl(m.name) } }
+    };
+    const v=lineElQ.toLowerCase();
+    inspBody.querySelectorAll("[data-el]").forEach(b=>b.style.display=b.dataset.n.includes(v)?"":"none");
+    inspBody.querySelectorAll("[data-cat]").forEach(c=>{
+      let any=false,n=c.nextElementSibling;
+      while(n&&n.dataset&&n.dataset.el){ if(n.style.display!=="none")any=true; n=n.nextElementSibling }
+      c.style.display=any?"":"none";
+    });
+  }
+  inspBody.querySelectorAll("[data-eldrop]").forEach(b=>b.onclick=()=>{ toggleEl(b.dataset.eldrop); refocus("#elSearch") });
+  const sh=inspBody.querySelector("#shots");
+  if(sh){
+    sh.onchange=()=>apply(x=>{x.shots=Math.max(0,+sh.value||0); if(x.shots)x.status="vfx"});
+    inspBody.querySelector("#sPlus").onclick=()=>apply(x=>{x.shots=(x.shots||0)+1;x.status="vfx"});
+    inspBody.querySelector("#sMinus").onclick=()=>apply(x=>x.shots=Math.max(0,(x.shots||0)-1));
+    const c=inspBody.querySelector("#cost");
+    c.onchange=()=>apply(x=>{x.cost=+c.value||0;x.lock=true});
+    inspBody.querySelector("#lock").onclick=()=>apply(x=>{x.lock=!x.lock; if(!x.lock){const s=suggest(x);x.cost=s.cost}});
+    const dy=inspBody.querySelector("#days");
+    dy&&(dy.onchange=()=>apply(x=>x.days=Math.max(0,+dy.value||0)));
+  }
+  const nt=inspBody.querySelector("#notes");
+  if(nt) nt.onchange=()=>apply(x=>x.notes=nt.value);
+  inspBody.querySelector("#applyNext").onclick=nextUntagged;
+}
+function refocus(sel2){
+  const el=inspBody.querySelector(sel2);
+  if(el){ el.focus(); const n=el.value.length; el.setSelectionRange(n,n) }
+}
+function toggleEl(n){
+  apply(x=>{x.status="vfx"; if(!x.shots)x.shots=1;
+    x.elements.includes(n)?x.elements=x.elements.filter(y=>y!==n):x.elements.push(n);
+    if(!x.lock){const g=suggest(x); x.cost=g.cost; x.lod=g.lod}});
+}
+function setStatus(s){
+  apply(x=>{
+    if(x.status===s){ x.status=""; x.shots=0; return }   // click again to unselect
+    x.status=s;
+    if(s==="vfx"){ if(!x.shots)x.shots=1; const g=suggest(x); if(!x.lock)x.cost=x.cost||g.cost; if(!x.lod)x.lod=g.lod }
+    else { x.shots=0 }
+  });
+}
+function move(d){
+  const vis=ALL.filter(lineVisible).map(l=>l.item);
+  if(!vis.length) return;
+  let i=sel.length?vis.indexOf(sel[sel.length-1]):-1;
+  i=Math.max(0,Math.min(vis.length-1,i+d));
+  sel=[vis[i]]; anchor=vis[i];
+  refreshSel(); renderInspector();
+  const el=blkEls[vis[i]];
+  el&&el.scrollIntoView({block:"nearest"});
+  const l=ALL.find(x=>x.item===vis[i]); setScene(l._s);
+}
+function nextUntagged(){
+  const start=ALL.findIndex(l=>l.item===(sel[0]||0));
+  for(let k=1;k<=ALL.length;k++){
+    const l=ALL[(Math.max(0,start)+k)%ALL.length];
+    const r=has(l.item);
+    if(!r||(!r.status&&!r.practical)){ sel=[l.item]; anchor=l.item; refreshSel(); renderInspector();
+      const el=blkEls[l.item]; el&&el.scrollIntoView({block:"center"}); setScene(l._s); return }
+  }
+  toast("Everything is tagged ✓");
+}
+function renderAll(){ renderHeader(); renderStrip(); renderScript(); refreshSel(); renderInspector() }
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown",e=>{
+  if(!DATA||!S) return;
+  const tag=e.target.tagName;
+  if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"){ if(e.key==="Escape")e.target.blur(); return }
+  if((e.metaKey||e.ctrlKey)&&e.key==="s"){e.preventDefault();openExport();return}
+  if((e.metaKey||e.ctrlKey)&&(e.key==="z"||e.key==="Z")){
+    e.preventDefault(); e.shiftKey?doRedo():doUndo(); return }
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  const k=e.key;
+  if(k==="ArrowDown"||k==="j"){e.preventDefault();move(1)}
+  else if(k==="ArrowUp"||k==="k"){e.preventDefault();move(-1)}
+  else if(k==="t"&&sel.length)setStatus("tbd");
+  else if(k==="v"&&sel.length)setStatus("vfx");
+  else if(k==="p"&&sel.length)apply(x=>x.practical=!x.practical);
+  else if(k==="Enter"){e.preventDefault();nextUntagged()}
+  else if(k==="["){gotoScene(Math.max(0,curScene-1))}
+  else if(k==="]"){gotoScene(Math.min(DATA.scenes.length-1,curScene+1))}
+  else if(k==="e"){const q=inspBody.querySelector("#elSearch"); if(q){e.preventDefault();q.focus()}}
+  else if(k==="Escape"){sel=[];sceneEdit=null;refreshShead();refreshSel();renderInspector()}
+  else if(/^[1-9]$/.test(k)&&sel.length){apply(x=>{x.status="vfx";x.shots=+k;const g=suggest(x);if(!x.lock&&!x.cost)x.cost=g.cost;if(!x.lod)x.lod=g.lod})}
+});
+
+/* ---------- export ---------- */
+const HEAD=["UUID","Item","Page","Scene","Sequence","I/E","Location","TOD","Character","Script Line","Notes",
+            "Scope Of Work","LOD","SHOTS","DAYS (EST)","COST PER SHOT","TOTAL COST","Image / Reference","HYBRID AI COST/SHOT","TOTAL COST"];
+function q(v){ v=v==null?"":String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v }
+function daysCell(o,f){ return `<input class="dz" data-days="${f}" value="${esc(o[f]||"")}" placeholder="—">` }
+function rowFor(l,sc){
+  const r=has(l.item)||{}, isV=r.status==="vfx";
+  const scope=isV?(r.elements||[]).join("\n"):(r.status==="tbd"?"VFX TBD":r.status==="novfx"?"NO VFX":"");
+  const notes=[r.practical?"PRACTICAL":"", (r.methods||[]).length?"Method: "+r.methods.join(" / "):"", r.notes||""].filter(Boolean).join(". ");
+  const c=isV?itemCost(r):0;
+  const cost=isV?c:"", shots=isV?(r.shots||0):"";
+  const hyb=isV?Math.round(c*(+S.hybrid||100)/100):"";
+  return [crypto.randomUUID(),l.item,l.page,sc.num,S.seq,sc.ie,sc.location,sc.tod,l.char||"",
+    l.text,notes,scope,isV?(r.lod||""):"",shots,isV?(r.days||""):"",cost,isV?(r.shots||0)*c:0,"",hyb,isV?(r.shots||0)*(hyb||0):0];
+}
+function sceneRows(sc,si){
+  const d=shas(si); if(!d) return [];
+  const out=[];
+  if(d.difficulty||d.notes)
+    out.push([crypto.randomUUID(),"",sc.page,sc.num,S.seq,sc.ie,sc.location,sc.tod,"","[SCENE NOTES]",
+      [d.difficulty?"Difficulty: "+d.difficulty:"",d.notes||""].filter(Boolean).join(". "),
+      "","", "","","",0,"","",0]);
+  (d.shots||[]).forEach((sh,i)=>{
+    const cost=shotCost(sh), lod=shotLod(sh);
+    const notes=[(sh.methods||[]).length?"Method: "+sh.methods.join(" / "):"",
+      (sh.lines||[]).length?"Script lines: "+sh.lines.join(", "):"", sh.notes||""].filter(Boolean).join(". ");
+    const hyb=Math.round(cost*(+S.hybrid||100)/100);
+    out.push([crypto.randomUUID(),sceneShotId(si,i),sc.page,sc.num,S.seq,sc.ie,sc.location,sc.tod,"",
+      "[SHOT] "+(sh.label||"Untitled")+(sh.desc?" — "+sh.desc:""),notes,
+      (sh.elements||[]).join("\n"),lod,sh.count||1,sh.days||"",cost,(sh.count||1)*cost,"",hyb,(sh.count||1)*hyb]);
+  });
+  return out;
+}
+const PRICE_COLS=[15,16,18,19];   // cost/shot, total, hybrid/shot, hybrid total
+function strip(arr){ return exportPrices?arr:arr.filter((_,i)=>!PRICE_COLS.includes(i)) }
+function exportCSV(){
+  const rows=[strip(HEAD).join(",")];
+  DATA.scenes.forEach((sc,si)=>{
+    sceneRows(sc,si).forEach(r=>rows.push(strip(r).map(q).join(",")));
+    sc.lines.forEach(l=>rows.push(strip(rowFor(l,sc)).map(q).join(",")));
+  });
+  if(+S.allowShots>0)
+    rows.push(strip([crypto.randomUUID(),"","","","ALLOWANCE","","","","","VFX Allowance","Unassigned allowance",
+      "VFX Allowance","",S.allowShots,"",S.allowRate,S.allowShots*S.allowRate,"",S.allowRate,S.allowShots*S.allowRate]).map(q).join(","));
+  dl(rows.join("\n"),DATA.title.replace(/\s+/g,"_")+"_VFX_Breakdown.csv","text/csv");
+}
+function exportJSON(){
+  const out={title:DATA.title,proj:S.proj||"PRJ",seq:S.seq||"PRJ",hybrid:S.hybrid,allowShots:S.allowShots,allowRate:S.allowRate,
+    includePrices:exportPrices, lib:S.lib, rows:[]};
+  const px=v=>exportPrices?v:0;
+  DATA.scenes.forEach((sc,si)=>{
+    const d=shas(si);
+    if(d&&(d.difficulty||d.notes))
+      out.rows.push({item:"",page:sc.page,scene:sc.num,ie:sc.ie,location:sc.location,tod:sc.tod,
+        char:"",text:"[SCENE NOTES]",status:"note",elements:[],methods:[],lod:"",shots:0,cost:0,
+        notes:[d.difficulty?"Difficulty: "+d.difficulty:"",d.notes||""].filter(Boolean).join(". ")});
+    if(d)(d.shots||[]).forEach((sh,i)=>{
+      out.rows.push({item:sceneShotId(si,i),page:sc.page,scene:sc.num,ie:sc.ie,location:sc.location,tod:sc.tod,
+        days:sh.days||0,
+        char:"",text:"[SHOT] "+(sh.label||"Untitled")+(sh.desc?" — "+sh.desc:""),status:"vfx",
+        elements:sh.elements||[],methods:sh.methods||[],lod:shotLod(sh),shots:sh.count||1,
+        cost:px(shotCost(sh)),notes:[(sh.lines||[]).length?"Script lines: "+sh.lines.join(", "):"",sh.notes||""].filter(Boolean).join(". "),
+        img:sh.img||"",lines:sh.lines||[]});
+    });
+    sc.lines.forEach(l=>{
+      const r=has(l.item); if(!r||(!r.status&&!r.practical)) return;
+      out.rows.push({item:l.item,page:l.page,scene:sc.num,ie:sc.ie,location:sc.location,tod:sc.tod,
+        days:r.days||0,
+        char:l.char||"",text:l.text,status:r.status,practical:!!r.practical,elements:r.elements||[],methods:r.methods||[],
+        lod:r.lod||"",shots:r.shots||0,cost:px(itemCost(r)),notes:r.notes||""});
+    });
+  });
+  dl(JSON.stringify(out,null,1),DATA.title.replace(/\s+/g,"_")+"_breakdown.json","application/json");
+}
+function openExport(){
+  if(!DATA) return;
+  modal(`<h3>Export</h3><div class="mb" style="line-height:1.7">
+    <p style="margin-top:0"><b>Breakdown JSON</b> — feed to <code style="color:var(--accent)">pipeline/build_xlsx.py</code> to generate a real .xlsx bid workbook (formatting, live formulas, summary rows, embedded storyboards):</p>
+    <p style="background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:8px;font:11.5px 'SF Mono',monospace">python3 pipeline/build_xlsx.py &lt;breakdown.json&gt;</p>
+    <p><b>CSV</b> — same columns as the Shot Breakdown sheet, for quick paste.</p>
+    <p><b>Session</b> — full backup (script + all work) you can re-import on any machine.</p></div>
+    <div style="border-top:1px solid var(--line);padding:10px 16px">
+      <div class="row" style="margin-bottom:9px">
+        <label style="font-size:11px;color:var(--dim2)">Project code</label>
+        <input id="expProj" value="${esc(S.proj||"PRJ")}" style="width:90px;text-transform:uppercase">
+        <label style="font-size:11px;color:var(--dim2);margin-left:10px">Sequence code</label>
+        <input id="expSeq" value="${esc(S.seq||"PRJ")}" style="width:90px;text-transform:uppercase">
+        <span style="font-size:10px;color:var(--dim2)">— used in the workbook &amp; CSV</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer">
+        <input type="checkbox" id="expPrices" ${exportPrices?"checked":""} style="width:14px;height:14px;padding:0;accent-color:var(--accent)">
+        <b>Include prices</b>
+      </label>
+      <div style="font-size:10.5px;color:var(--dim2);margin-left:21px;margin-top:2px">
+        Off: cost columns are dropped from the CSV and left blank in the xlsx — scope, LOD and shot counts still export.
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn" id="eSes">Session backup</button>
+      <button class="btn" id="eCsv">CSV</button>
+      <button class="btn primary" id="eJson">Breakdown JSON → xlsx</button>
+    </div>`,m=>{
+    const xp=m.querySelector("#expPrices");
+    xp.onchange=()=>{ exportPrices=xp.checked;
+      lsSet("vfxbd:exportPrices", exportPrices?"1":"0") };
+    const pj=m.querySelector("#expProj"), sq=m.querySelector("#expSeq");
+    pj.onchange=()=>{S.proj=pj.value.trim().toUpperCase()||"PRJ"; save()};
+    sq.onchange=()=>{S.seq=sq.value.trim().toUpperCase()||"PRJ"; save()};
+    m.querySelector("#eCsv").onclick=()=>{exportCSV();toast(exportPrices?"CSV exported":"CSV exported (no prices)")};
+    m.querySelector("#eJson").onclick=()=>{exportJSON();toast("JSON exported — run build_xlsx.py")};
+    m.querySelector("#eSes").onclick=()=>{dl(JSON.stringify({script:DATA,state:S}),DATA.title.replace(/\s+/g,"_")+"_session.json","application/json");toast("Session saved — script + work in one file")};
+  });
+}
+function dl(txt,name,mime){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([txt],{type:mime})); a.download=name; a.click();
+}
+function toast(m){ const d=document.createElement("div"); d.className="toast"; d.textContent=m;
+  document.body.appendChild(d); setTimeout(()=>d.remove(),2100) }
+
+/* ---------- modals ---------- */
+function lightbox(src,caption){
+  const b=document.createElement("div"); b.id="lightbox";
+  b.innerHTML='<button class="x">×</button><img src="'+src+'">'+(caption?'<div class="cap">'+esc(caption)+'</div>':"");
+  b.onclick=()=>b.remove();
+  document.body.appendChild(b);
+  const esckey=e=>{ if(e.key==="Escape"){ b.remove(); document.removeEventListener("keydown",esckey) } };
+  document.addEventListener("keydown",esckey);
+}
+function modal(html,onOpen){
+  const m=document.createElement("div"); m.className="mask"; m.innerHTML=`<div class="modal">${html}</div>`;
+  m.onclick=e=>{ if(e.target===m)m.remove() };
+  document.body.appendChild(m); onOpen&&onOpen(m); return m;
+}
+function loadJSON(obj){
+  if(obj && Array.isArray(obj.libUpdate)){                        // rate-card update
+    let n=0;
+    obj.libUpdate.forEach(u=>{
+      const e=S.lib.find(x=>x.name===u.name); if(!e) return;
+      if(u.cost!=null && e.cost!==u.cost){ e.cost=u.cost; n++ }
+      if(u.lod && e.lod!==u.lod) e.lod=u.lod;
+    });
+    return "lib:"+n;
+  }
+  if(obj && obj.script && obj.state){                             // full session (script + work)
+    try{ localStorage.setItem(SCRIPT_KEY, JSON.stringify(obj.script)); }catch(e){ alert("Storage full — couldn't save the script."); return null; }
+    try{ localStorage.setItem("vfxsb:state:"+obj.script.title, JSON.stringify(obj.state)); }catch(e){}
+    location.reload();
+    return "session";
+  }
+  if(obj && (obj.items || obj.scenes || obj.lib) && !obj.rows){   // state-only backup for the current script
+    S=obj; if(!S.lib)S.lib=SEED.slice(); if(!S.scenes)S.scenes={}; if(!S.items)S.items={};
+    Object.values(S.items).forEach(r=>{ if(r.status==="novfx")r.status="" });
+    return "session";
+  }
+  if(obj && Array.isArray(obj.rows)){                              // breakdown JSON
+    S={seq:obj.seq||DATA.sequence, hybrid:obj.hybrid||100, allowShots:obj.allowShots||0,
+       allowRate:obj.allowRate||500, items:{}, scenes:{}, lib:(obj.lib&&obj.lib.length)?obj.lib:SEED.slice()};
+    const idx={}; DATA.scenes.forEach((sc,i)=>idx[String(sc.num)]=i);
+    obj.rows.forEach(row=>{
+      const si=idx[String(row.scene)]; if(si===undefined) return;
+      if(row.status==="note"){
+        const d=srec(si), m=/Difficulty:\s*(Low|Medium|High)\.?\s*/i.exec(row.notes||"");
+        if(m)d.difficulty=m[1][0].toUpperCase()+m[1].slice(1).toLowerCase();
+        d.notes=(row.notes||"").replace(/Difficulty:\s*(Low|Medium|High)\.?\s*/i,"").trim();
+        return;
+      }
+      if(typeof row.item==="string" && row.item.includes("-")){    // scene shot
+        const t=(row.text||"").replace(/^\[SHOT\]\s*/,"");
+        const p=t.split(" — ");
+        srec(si).shots.push({label:p[0]||"",desc:p.slice(1).join(" — ")||"",
+          elements:row.elements||[], methods:row.methods||[], lod:row.lod||"",
+          count:row.shots||1, cost:row.cost||0, days:row.days||0, lock:true, notes:row.notes||"", img:row.img||"",
+          lines:row.lines||[]});
+        return;
+      }
+      if(row.item){                                                // line item
+        S.items[row.item]={status:row.status==="novfx"?"":row.status, practical:!!row.practical, elements:row.elements||[],
+          methods:row.methods||[], lod:row.lod||"", shots:row.shots||0, cost:row.cost||0, days:row.days||0,
+          notes:row.notes||"", lock:!!row.cost};
+      }
+    });
+    return "breakdown";
+  }
+  return null;
+}
+function importFile(){
+  const go=()=>{
+    const i=document.createElement("input"); i.type="file"; i.accept=".json,application/json";
+    i.onchange=()=>{
+      const f=new FileReader();
+      f.onload=()=>{
+        let obj; try{ obj=JSON.parse(f.result) }catch(e){ return alert("That file isn't valid JSON.") }
+        if(!Array.isArray(obj.libUpdate)){
+          const dirty=Object.keys(S.items).length||Object.keys(S.scenes).length;
+          if(dirty && !confirm("Importing replaces the work currently in this browser. Continue?")) return;
+        }
+        pushUndo({label:"Import file", full:true,
+          fullPrev:undefined});
+        undoStack[undoStack.length-1].full=clone({items:S.items,scenes:S.scenes});
+        const kind=loadJSON(obj);
+        if(!kind){ undoStack.pop(); updateHistBtn();
+          return alert("Unrecognized file — expected a session backup, breakdown JSON, or rate-card update."); }
+        sel=[]; sceneEdit=null; activeShot=-1; save(); renderAll();
+        toast(kind==="session"?"Session restored":kind==="breakdown"?"Breakdown imported"
+             :"Rate card updated — "+kind.slice(4)+" prices changed");
+      };
+      f.readAsText(i.files[0]);
+    };
+    i.click();
+  };
+  go();
+}
+btnImp.onclick=importFile;
+btnHist.onclick=()=>{
+  if(!undoStack.length&&!redoStack.length) return toast("Nothing to undo yet");
+  const rowCss="display:flex;gap:8px;align-items:center;width:100%;padding:6px 9px;border-bottom:1px solid var(--rowline);font-size:12px";
+  const btnCss="font-size:10.5px;padding:3px 9px;border-radius:5px;border:1px solid var(--line);white-space:nowrap";
+  // future (undone) entries: next redo sits closest to the "now" divider
+  const future=redoStack.map((e,i)=>({e,steps:redoStack.length-i})).reverse();
+  modal(`<h3>History</h3><div class="mb">
+    <div style="font-size:11px;color:var(--dim2);margin-bottom:10px">⌘Z undo · ⇧⌘Z redo — or use the buttons on each entry</div>
+    ${future.map(({e,steps})=>`
+      <div style="${rowCss};opacity:.55">
+        <span style="flex:1">${esc(e.label)}</span>
+        <span style="color:var(--dim2);font-size:10.5px">undone</span>
+        <button data-hredo="${steps}" style="${btnCss};border-color:var(--green);color:var(--green)">↪ Redo</button>
+      </div>`).join("")}
+    ${undoStack.length||future.length?`<div style="padding:3px 9px;font-size:9.5px;letter-spacing:.6px;color:var(--accent);border-bottom:1px solid var(--accent)">▶ NOW</div>`:""}
+    ${undoStack.slice().reverse().map((e,ri)=>{
+      const i=undoStack.length-1-ri;
+      return `<div style="${rowCss}">
+        <span style="flex:1">${esc(e.label)}</span>
+        <span style="color:var(--dim2);font-size:10.5px">${ago(e.t)}</span>
+        <button data-hjump="${i}" style="${btnCss};border-color:var(--amber);color:var(--amber)">↩ Undo</button>
+      </div>`;
+    }).join("")}
+  </div>
+  <div class="mf"><button class="btn primary" data-x>Close</button></div>`,m=>{
+    m.querySelectorAll("[data-hjump]").forEach(b=>b.onclick=()=>{
+      const to=+b.dataset.hjump;
+      while(undoStack.length>to) doUndo();
+      m.remove(); btnHist.onclick();
+    });
+    m.querySelectorAll("[data-hredo]").forEach(b=>b.onclick=()=>{
+      let n=+b.dataset.hredo;
+      while(n-->0 && redoStack.length) doRedo();
+      m.remove(); btnHist.onclick();
+    });
+    m.querySelector("[data-x]").onclick=()=>m.remove();
+  });
+};
+btnBd.onclick=()=>{
+  const cp=costPreview;
+  const rows=[];
+  DATA.scenes.forEach((sc,si)=>{
+    const d=shas(si);
+    if(d&&(d.difficulty||d.notes))
+      rows.push({kind:"scn",sc,text:"[SCENE NOTES]",notes:[d.difficulty?"Difficulty: "+d.difficulty:"",d.notes||""].filter(Boolean).join(". ")});
+    if(d)(d.shots||[]).forEach((sh,i)=>rows.push({kind:"shot",sc,si,i,sh,
+      item:sceneShotId(si,i),text:"[SHOT] "+(sh.label||"Untitled")+(sh.desc?" — "+sh.desc:"")}));
+    sc.lines.forEach(l=>{const r=has(l.item);
+      if(r&&(r.status||r.practical)) rows.push({kind:"line",sc,l,r,item:l.item,text:(l.char?l.char+": ":"")+l.text});
+    });
+  });
+  const v=document.createElement("div"); v.id="bdview";
+  v.innerHTML=`<div class="bar"><b>Shot Breakdown preview</b>
+      <span class="subtitle">${rows.length} rows — as they will export. Click a row to open it; days and notes are editable here.</span>
+      <button class="btn" style="margin-left:auto" data-x>✕ Close</button></div>
+    <div class="wrap"><table><thead><tr>
+      <th>Item</th><th>Pg</th><th>Sc</th><th>Script Line / Shot</th><th>Notes</th><th>Scope of Work</th>
+      <th>LOD</th><th>Shots</th><th>Days (est)</th>${cp?"<th>Cost/Shot</th><th>Total</th>":""}<th>Board</th>
+    </tr></thead><tbody>${rows.map((row,ri)=>{
+      if(row.kind==="scn")
+        return `<tr class="scn"><td></td><td class="num">${row.sc.page}</td><td class="num">${esc(row.sc.num)}</td>
+          <td>[SCENE NOTES] ${esc(row.sc.heading)}</td><td colspan="${cp?8:6}">${esc(row.notes)}</td></tr>`;
+      const o=row.kind==="shot"?row.sh:row.r;
+      const els=(o.elements||[]).join("\n");
+      const notes=[(o.methods||[]).length?"Method: "+o.methods.join(" / "):"", row.kind==="line"&&o.practical?"PRACTICAL":"", o.notes||""].filter(Boolean).join(". ");
+      const shots=row.kind==="shot"?(o.count||1):(o.shots||0);
+      const cost=row.kind==="shot"?shotCost(o):itemCost(o);
+      const lod=row.kind==="shot"?shotLod(o):(o.lod||"");
+      return `<tr class="rw" data-ri="${ri}">
+        <td><button data-go="${ri}" title="Open in editor" style="color:var(--accent);font-size:12px;padding:0 4px">↗</button> ${esc(String(row.item))}</td><td class="num">${row.kind==="shot"?row.sc.page:row.l.page}</td>
+        <td class="num">${esc(row.sc.num)}</td>
+        <td>${esc(row.text.slice(0,110))}</td>
+        <td><input class="nt" data-notes value="${esc(o.notes||"")}">
+            <select data-phr style="width:20px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;font-size:11px">
+              <option value=""></option>${PHRASES.map(ph=>`<option>${esc(ph)}</option>`).join("")}</select></td>
+        <td style="min-width:190px">
+          <div data-sow>${(o.elements||[]).map(n=>`<span style="display:inline-flex;align-items:center;gap:3px;background:var(--pick-bg);border:1px solid var(--pick-bd);border-radius:9px;padding:1px 7px;margin:1px;font-size:10.5px;color:var(--pick-fg)">${esc(n)}<button data-sowrm="${esc(n)}" style="color:var(--dim2);font-size:11px;line-height:1">×</button></span>`).join("")}</div>
+          <select data-sowadd style="max-width:110px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;font-size:10.5px;margin-top:2px">
+            <option value="">+ element…</option>
+            ${[...new Set(S.lib.map(e=>e.cat))].map(c=>`<optgroup label="${esc(c)}">${S.lib.filter(e=>e.cat===c).sort((a,b)=>a.name.localeCompare(b.name)).map(e=>`<option>${esc(e.name)}</option>`).join("")}</optgroup>`).join("")}
+          </select></td>
+        <td>${esc(lod)}</td><td class="num">${shots}</td>
+        <td>${daysCell(o,"days")}</td>
+        ${cp?`<td class="num">${money(cost)}</td><td class="num">${money(shots*cost)}</td>`:""}
+        <td>${o.img?`<img src="${o.img}">`:""}</td></tr>`;
+    }).join("")}</tbody></table></div>`;
+  document.body.appendChild(v);
+  v.querySelector("[data-x]").onclick=()=>v.remove();
+  const esck=e=>{if(e.key==="Escape"&&document.getElementById("bdview")){v.remove();document.removeEventListener("keydown",esck)}};
+  document.addEventListener("keydown",esck);
+  v.querySelectorAll("tr.rw").forEach(tr=>{
+    const row=rows[+tr.dataset.ri];
+    const o=row.kind==="shot"?row.sh:row.r;
+    tr.querySelectorAll("[data-days]").forEach(inp=>{
+      inp.onclick=e=>e.stopPropagation();
+      inp.onchange=()=>{o[inp.dataset.days]=Math.max(0,+inp.value||0); save(); renderHeader()};
+    });
+    const nt=tr.querySelector("[data-notes]");
+    nt.onclick=e=>e.stopPropagation();
+    nt.onchange=()=>{o.notes=nt.value; save()};
+    tr.querySelector("td img")&&(tr.querySelector("td img").onclick=e=>{e.stopPropagation();lightbox(o.img,row.text.slice(0,80))});
+    const syncRow=()=>{
+      // element change may alter suggested cost/lod — recompute displayed shots/cost via full refresh of just this view
+      save();
+      if(row.kind==="line"){ linkedSet=null; patch([row.l.item]); }
+      const sow=tr.querySelector("[data-sow]");
+      sow.innerHTML=(o.elements||[]).map(n=>`<span style="display:inline-flex;align-items:center;gap:3px;background:var(--pick-bg);border:1px solid var(--pick-bd);border-radius:9px;padding:1px 7px;margin:1px;font-size:10.5px;color:var(--pick-fg)">${esc(n)}<button data-sowrm="${esc(n)}" style="color:var(--dim2);font-size:11px;line-height:1">×</button></span>`).join("");
+      wireSow();
+    };
+    const wireSow=()=>tr.querySelectorAll("[data-sowrm]").forEach(b=>b.onclick=e=>{
+      e.stopPropagation();
+      o.elements=(o.elements||[]).filter(n=>n!==b.dataset.sowrm);
+      if(row.kind==="line"&&!o.lock){const g=suggest(o); o.cost=g.cost; o.lod=g.lod}
+      syncRow();
+    });
+    wireSow();
+    const sad=tr.querySelector("[data-sowadd]");
+    sad.onclick=e=>e.stopPropagation();
+    sad.onchange=()=>{
+      if(!sad.value) return;
+      o.elements=o.elements||[];
+      if(!o.elements.includes(sad.value)) o.elements.push(sad.value);
+      if(row.kind==="line"){ o.status=o.status||"vfx"; if(!o.shots)o.shots=1;
+        if(!o.lock){const g=suggest(o); o.cost=g.cost; o.lod=g.lod} }
+      sad.value=""; syncRow();
+    };
+    const ph=tr.querySelector("[data-phr]");
+    ph.onclick=e=>e.stopPropagation();
+    ph.onchange=()=>{
+      if(!ph.value) return;
+      o.notes=(o.notes?o.notes.replace(/\.?\s*$/,". "):"")+ph.value;
+      nt.value=o.notes; ph.value=""; save();
+    };
+    tr.querySelector("[data-go]").onclick=e=>{
+      e.stopPropagation(); v.remove();
+      if(row.kind==="shot"){ gotoScene(row.si); sceneEdit=row.si; activeShot=row.i; sel=[]; refreshSel(); refreshShead(); renderInspector(); }
+      else { sceneEdit=null; refreshShead(); sel=[row.l.item]; anchor=row.l.item; refreshSel(); renderInspector();
+             const el=blkEls[row.l.item]; el&&el.scrollIntoView({block:"center"}); setScene(row.l._s); }
+    };
+  });
+};
+btnOver.onclick=()=>{
+  const u=elUsage();
+  const catOf=n=>{const e=findEl(n); return e?e.cat:"Other"};
+  const byCat={};
+  Object.entries(u).forEach(([n,v])=>{
+    const c=catOf(n); byCat[c]=byCat[c]||{shots:0,cost:0,els:[]};
+    byCat[c].shots+=v.n; byCat[c].cost+=v.c; byCat[c].els.push([n,v]);
+  });
+  // every shot with its element set, for exact omit-math
+  const shotList=[];
+  ALL.forEach(l=>{const r=has(l.item);
+    if(r&&r.status==="vfx") shotList.push({n:r.shots||0,c:(r.shots||0)*itemCost(r),els:r.elements||[]})});
+  Object.keys(S.scenes).forEach(si=>(S.scenes[si].shots||[]).forEach(sh=>
+    shotList.push({n:sh.count||0,c:(sh.count||0)*shotCost(sh),els:sh.elements||[]})));
+  const excl=new Set(), exclEl=new Set();
+  const hiddenEl=e=>excl.has(catOf(e))||exclEl.has(e);
+  const eye=(off,sz)=>off
+    ?`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s4-7 10-7c2.2 0 4.1.9 5.6 2M22 12s-4 7-10 7c-2.2 0-4.1-.9-5.6-2"/><line x1="4" y1="20" x2="20" y2="4"/></svg>`
+    :`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const calc=()=>{
+    let shots=0,cost=0;
+    shotList.forEach(s=>{
+      if(!s.els.length||s.els.some(e=>!hiddenEl(e))){ shots+=s.n;
+        if(!s.els.length){ cost+=s.c; return }
+        const w=s.els.map(e=>{const le=findEl(e); return le?le.cost:0});
+        const tot=w.reduce((a,b)=>a+b,0)||1;
+        s.els.forEach((e,i)=>{ if(!hiddenEl(e)) cost+=s.c*w[i]/tot });
+      }});
+    return {shots,cost:Math.round(cost)};
+  };
+  const full=calc();
+  const cards=()=>Object.entries(byCat).sort((a,b)=>b[1].cost-a[1].cost).map(([c,v])=>{
+    const off=excl.has(c);
+    return `
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--panel2);${off?"opacity:.45":""}">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <button data-vis="${esc(c)}" title="${off?"Include":"Omit"} this category" style="line-height:0;color:${off?"var(--red)":"var(--dim2)"}">${eye(off,15)}</button>
+        <b style="font-size:14px;${off?"text-decoration:line-through":""}">${esc(c)}</b>
+        <span style="margin-left:auto;font-size:18px;font-variant-numeric:tabular-nums"><b>${v.shots}</b> <span style="font-size:10px;color:var(--dim2)">SHOTS</span></span>
+        <span class="costcell" style="font-size:13px;color:var(--green);font-variant-numeric:tabular-nums">${money(Math.round(v.cost))}</span>
+      </div>
+      ${v.els.sort((a,b)=>b[1].n-a[1].n).map(([n,x])=>{
+        const eoff=off||exclEl.has(n);
+        return `
+        <div style="display:flex;gap:8px;align-items:center;font-size:11.5px;padding:2px 0;border-top:1px solid var(--rowline);${eoff?"opacity:.5":""}">
+          <button data-evis="${esc(n)}" ${off?"disabled":""} title="${eoff?"Include":"Omit"} this element" style="line-height:0;color:${eoff?"var(--red)":"var(--dim2)"};${off?"opacity:.4":""}">${eye(eoff,12)}</button>
+          <span style="flex:1;${eoff?"text-decoration:line-through":""}">${esc(n)}</span><span style="font-variant-numeric:tabular-nums">×${x.n}</span>
+          <span class="costcell" style="color:var(--dim2);width:70px;text-align:right;font-variant-numeric:tabular-nums">${money(Math.round(x.c))}</span></div>`}).join("")}
+    </div>`}).join("");
+  const t=totals();
+  const statsHtml=()=>{
+    const v=calc();
+    const om=[...excl,...[...exclEl].filter(e=>!excl.has(catOf(e)))];
+    const omitted=om.length?`<span style="font-size:11px;color:var(--red)">omitting ${om.join(", ")}: −${full.shots-v.shots} shot${full.shots-v.shots===1?"":"s"}<span class="costcell"> · −${money(full.cost-v.cost)}</span></span>`:"";
+    return `
+      <div class="stat" style="text-align:left"><b style="font-size:22px">${v.shots}</b><span>Tagged VFX shots</span></div>
+      ${t.aShots?`<div class="stat" style="text-align:left"><b style="font-size:22px">${t.aShots}</b><span>Allowance</span></div>`:""}
+      <div class="stat costcell" style="text-align:left"><b style="font-size:22px">${money(v.cost)}</b><span>Est. cost</span></div>
+      <div class="stat costcell" style="text-align:left"><b style="font-size:22px">${money(v.cost+t.aCost)}</b><span>Grand total</span></div>
+      <div style="flex-basis:100%">${omitted}</div>`;
+  };
+  const m=modal(`<h3>VFX Overview — ${esc(DATA.title)}</h3><div class="mb">
+    <div class="row" style="gap:24px;flex-wrap:wrap;position:sticky;top:-14px;z-index:8;background:var(--panel);margin:-14px -16px 14px;padding:14px 16px 10px;border-bottom:1px solid var(--line)">
+      <div id="ovStats" style="display:flex;gap:24px;flex-wrap:wrap;flex:1">${statsHtml()}</div>
+      <div style="margin-left:auto;text-align:right">
+        <button class="btn" id="costToggle">Show cost</button>
+        <div class="costcell" style="margin-top:5px">
+          <label style="font-size:10.5px;color:var(--dim2);cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+            <input type="checkbox" id="costPrev" ${costPreview?"checked":""} style="width:13px;height:13px;padding:0;accent-color:var(--accent)">
+            toggle cost preview
+          </label>
+          <div style="font-size:9.5px;color:var(--dim2);max-width:190px;line-height:1.35">shows prices on shot cards in the right pane</div>
+        </div>
+      </div>
+    </div>
+    <div id="ovCards">${cards()||`<div class="empty">Nothing tagged yet — the overview builds itself as you break down the script.</div>`}</div>
+  </div>
+  <div class="mf"><button class="btn primary" data-x>Done</button></div>`,
+  m=>{
+    const rerender=()=>{
+      m.querySelector("#ovStats").innerHTML=statsHtml();
+      m.querySelector("#ovCards").innerHTML=cards();
+      wireVis();
+    };
+    const wireVis=()=>{
+      m.querySelectorAll("[data-vis]").forEach(b=>b.onclick=()=>{
+        const c=b.dataset.vis;
+        excl.has(c)?excl.delete(c):excl.add(c);
+        rerender();
+      });
+      m.querySelectorAll("[data-evis]").forEach(b=>b.onclick=()=>{
+        const e=b.dataset.evis;
+        exclEl.has(e)?exclEl.delete(e):exclEl.add(e);
+        rerender();
+      });
+    };
+    wireVis();
+    m.querySelector("[data-x]").onclick=()=>m.remove();
+    const cp=m.querySelector("#costPrev");
+    cp&&(cp.onchange=()=>{
+      costPreview=cp.checked;
+      lsSet("vfxbd:costPreview", costPreview?"1":"0");
+      renderScript(); refreshSel(); markCur(); renderInspector();
+    });
+    const tg=m.querySelector("#costToggle"), box=m.querySelector(".modal");
+    tg&&(tg.onclick=()=>{
+      const on=box.classList.toggle("showcost");
+      tg.textContent=on?"Hide cost":"Show cost";
+      tg.style.cssText="margin-left:auto"+(on?";border-color:var(--accent);color:var(--accent)":"");
+    });
+  });
+};
+btnLib.onclick=()=>{
+  const m=modal(`<h3>Element Library &amp; Rate Card</h3><div class="mb">
+    <table id="libT"><tr><th style="width:14px"></th><th>Element</th><th style="width:60px">LOD</th><th style="width:90px">Cost</th><th style="width:20px"></th></tr></table>
+    <div class="row" style="margin-top:12px">
+      <input id="nCat" placeholder="Category" style="width:130px" list="cats">
+      <datalist id="cats">${catsOf().sort((a,b)=>a.localeCompare(b)).map(c=>`<option>${esc(c)}</option>`).join("")}</datalist>
+      <input id="nName" placeholder="Element name" style="flex:1">
+      <select id="nLod">${LODS.map(l=>`<option>${l}</option>`).join("")}</select>
+      <input id="nCost" type="number" placeholder="Cost" style="width:90px" value="500">
+      <button class="btn primary" id="nAdd">Add</button>
+    </div></div>
+    <div class="mf"><button class="btn" id="libReset" style="margin-right:auto;border-color:var(--red);color:var(--red)">Reset to default library</button><button class="btn" data-x>Done</button></div>`,m=>{
+    m.querySelector("#libReset").onclick=()=>{
+      if(!confirm("Replace the whole library with the built-in defaults? Custom elements and price edits are lost (assigned names on shots are kept as-is)."))return;
+      S.lib=SEED.map(e=>({...e})); save(); m.remove(); btnLib.onclick(); renderAll();
+    };
+    const t=m.querySelector("#libT");
+    libGroups().forEach(([cat,rows])=>{
+      const hr=document.createElement("tr");
+      hr.innerHTML=`<td colspan="5" style="padding-top:12px;border-bottom:1px solid var(--line)">
+        <b style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--accent)">${esc(cat)}</b>
+        <span style="color:var(--dim2);font-size:10px"> · ${rows.length}</span></td>`;
+      t.appendChild(hr);
+      rows.forEach(({e,i})=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td></td><td><input data-i="${i}" data-f="name" value="${esc(e.name)}" style="width:100%;background:none;border:1px solid transparent;padding:3px 4px"></td>
+          <td><select data-i="${i}" data-f="lod">${LODS.map(l=>`<option ${l===e.lod?"selected":""}>${l}</option>`).join("")}</select></td>
+          <td><input type="number" data-i="${i}" data-f="cost" value="${e.cost}" style="width:80px"></td>
+          <td><button data-del="${i}" style="color:var(--dim)">×</button></td>`;
+        t.appendChild(tr);
+      });
+    });
+    t.querySelectorAll('[data-f="lod"],[data-f="cost"]').forEach(el=>el.onchange=()=>{
+      S.lib[+el.dataset.i][el.dataset.f]=el.dataset.f==="cost"?+el.value:el.value; save(); renderAll() });
+    t.querySelectorAll('[data-f="name"]').forEach(el=>{
+      el.onfocus=()=>el.style.borderColor="var(--accent)";
+      el.onblur=()=>el.style.borderColor="transparent";
+      el.onkeydown=ev=>{ if(ev.key==="Enter")el.blur(); if(ev.key==="Escape"){el.value=S.lib[+el.dataset.i].name; el.blur()} };
+      el.onchange=()=>{
+        const i=+el.dataset.i, oldN=S.lib[i].name, newN=el.value.trim();
+        if(!newN||newN===oldN){ el.value=oldN; return }
+        if(S.lib.some((e,j)=>j!==i&&e.name===newN)){
+          alert(`"${newN}" already exists in the library. Pick a different name.`);
+          el.value=oldN; return;
+        }
+        S.lib[i].name=newN;
+        const n=renameEl(oldN,newN);
+        save(); renderAll();
+        m.remove(); btnLib.onclick();
+        toast(n?`Renamed — updated ${n} assigned shot${n===1?"":"s"}`:"Renamed");
+      };
+    });
+    t.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{S.lib.splice(+b.dataset.del,1);save();m.remove();btnLib.onclick()});
+    m.querySelector("#nAdd").onclick=()=>{
+      const n=m.querySelector("#nName").value.trim(); if(!n)return;
+      S.lib.push({cat:m.querySelector("#nCat").value.trim()||"Custom",name:n,
+        lod:m.querySelector("#nLod").value,cost:+m.querySelector("#nCost").value||0});
+      save(); m.remove(); btnLib.onclick(); renderInspector();
+    };
+    m.querySelector("[data-x]").onclick=()=>m.remove();
+  });
+};
+btnSum.onclick=()=>{
+  const t=totals();
+  const bySc=DATA.scenes.map((sc,i)=>({sc,st:sceneStat(i)})).filter(x=>x.st.shots);
+  const byEl={}; ALL.forEach(l=>{const r=has(l.item); if(r&&r.status==="vfx")(r.elements||[]).forEach(n=>{
+    byEl[n]=byEl[n]||{n:0,c:0}; byEl[n].n+=r.shots||0; byEl[n].c+=(r.shots||0)*(r.cost||0)/Math.max(1,r.elements.length)})});
+  Object.keys(S.scenes).forEach(si=>(S.scenes[si].shots||[]).forEach(sh=>{
+    const c=shotCost(sh); (sh.elements||[]).forEach(n=>{
+      byEl[n]=byEl[n]||{n:0,c:0}; byEl[n].n+=sh.count||1; byEl[n].c+=(sh.count||1)*c/Math.max(1,sh.elements.length)})}));
+  modal(`<h3>Bid Summary — ${esc(DATA.title)}</h3><div class="mb">
+    <div class="row" style="gap:22px;margin-bottom:14px">
+      <div class="stat" style="text-align:left"><b>${t.shots}</b><span>VFX shots</span></div>
+      <div class="stat" style="text-align:left"><b>${Math.round(t.days*10)/10}</b><span>Est. days</span></div>
+      <div class="stat" style="text-align:left"><b>${money(t.cost)}</b><span>Shot cost</span></div>
+      <div class="stat" style="text-align:left"><b>${money(t.avg)}</b><span>Avg/shot</span></div>
+      <div class="stat" style="text-align:left"><b>${money(t.tCost)}</b><span>Grand total</span></div>
+    </div>
+    <div class="row" style="margin-bottom:14px">
+      <label style="color:var(--dim2);font-size:11px">Allowance shots</label>
+      <input id="aS" type="number" value="${S.allowShots}" style="width:80px">
+      <label style="color:var(--dim2);font-size:11px">@</label>
+      <input id="aR" type="number" value="${S.allowRate}" style="width:90px">
+      <label style="color:var(--dim2);font-size:11px;margin-left:12px">Hybrid AI %</label>
+      <input id="hy" type="number" value="${S.hybrid}" style="width:70px">
+      <span style="color:var(--dim2);font-size:11px">= ${money(t.aCost)}</span>
+    </div>
+    <table><tr><th>Element</th><th>Shots</th><th>Est. cost</th></tr>
+      ${Object.entries(byEl).sort((a,b)=>b[1].c-a[1].c).map(([n,v])=>
+        `<tr><td>${esc(n)}</td><td>${v.n}</td><td>${money(Math.round(v.c))}</td></tr>`).join("")||`<tr><td colspan=3 style="color:var(--dim2)">No shots yet</td></tr>`}
+    </table>
+    <div style="margin:16px 0 6px;font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:.6px">By scene</div>
+    <table><tr><th>Sc</th><th>Heading</th><th>Shots</th><th>Cost</th></tr>
+      ${bySc.map(x=>`<tr><td>${esc(x.sc.num)}</td><td>${esc(x.sc.heading)}</td><td>${x.st.shots}</td><td>${money(x.st.cost)}</td></tr>`).join("")}
+    </table></div>
+    <div class="mf">
+      <button class="btn" id="newScript" style="margin-right:auto;border-color:var(--red);color:var(--red)">Load a different script…</button>
+      <button class="btn" id="impJson">Import session</button>
+      <button class="btn primary" data-x>Done</button>
+    </div>`,m=>{
+    m.querySelector("#newScript").onclick=()=>{
+      if(!confirm("Close this script and go back to the upload screen? Your work here stays saved in this browser and comes back if you re-load the same script or session backup."))return;
+      try{ localStorage.removeItem(SCRIPT_KEY); }catch(e){}
+      location.reload();
+    };
+    const upd=()=>{S.allowShots=+m.querySelector("#aS").value||0;S.allowRate=+m.querySelector("#aR").value||0;
+      S.hybrid=+m.querySelector("#hy").value||100;save();renderHeader()};
+    ["#aS","#aR","#hy"].forEach(s=>m.querySelector(s).onchange=upd);
+    m.querySelector("#impJson").onclick=()=>{m.remove();importFile()};
+    m.querySelector("[data-x]").onclick=()=>m.remove();
+  });
+};
+
+/* ---------- screenplay PDF parser (x-indent classification) ---------- */
+const TODW=new Set(["DAY","NIGHT","LATER","CONTINUOUS","MORNING","EVENING","DUSK","DAWN","SAME",
+  "MOMENTS LATER","AFTERNOON","SUNSET","SUNRISE","PRE-DAWN","MAGIC HOUR","NEXT MORNING","THAT NIGHT",
+  "FLASHBACK","LATER THAT NIGHT"]);
+const X_ACTION=130, X_DIALOGUE=180, X_PAREN=225, X_CHAR=300;
+const SKIP_RX=/^(\(MORE\)|\(CONTINUED\)|CONTINUED:?|\d+\.?|\d+\.\s*$|\d+[A-Z]?\s+\d+[A-Z]?)$/i;
+const HEAD_RX=/^(?:(\d+[A-Z]?)\s+)?(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?)[\s\.]/i;
+const TRANS_RX=/(CUT TO|DISSOLVE TO|SMASH CUT|FADE (IN|OUT|TO)|MATCH CUT|WIPE TO)/i;
+function classifyLn(x0,text){
+  if(SKIP_RX.test(text.trim())) return "skip";
+  if(x0>=X_CHAR) return TRANS_RX.test(text)?"transition":"skip";
+  if(HEAD_RX.test(text)) return "heading";
+  if(x0<X_ACTION) return (TRANS_RX.test(text)&&text.length<30)?"transition":"action";
+  if(x0<X_DIALOGUE) return "dialogue";
+  if(x0<X_PAREN) return "paren";
+  return "character";
+}
+function rxq(x){ return x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") }
+function parseHeadingLn(text){
+  text=text.trim().replace(/\.$/,"");
+  let num="";
+  const mn=text.match(/^(\d+[A-Z]?)\s+(.*)$/);
+  if(mn && HEAD_RX.test(mn[2])){
+    num=mn[1]; text=mn[2];
+    text=text.replace(new RegExp("\\s+"+rxq(num)+"$"),"");   // number often repeats at line end
+  }
+  const m=text.match(/^(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[\.\-]?\s*(.*)$/i);
+  if(!m) return [num,"",text,""];
+  const ie=m[1].toUpperCase().replace(/\.$/,"")+".";
+  const rest=m[2].trim();
+  if(rest.includes(" - ")){
+    const parts=rest.split(" - ").map(p=>p.trim());
+    const tail=parts[parts.length-1].toUpperCase();
+    if(TODW.has(tail)||["DAY","NIGHT","LATER","CONTINUOUS"].some(w=>tail.includes(w)))
+      return [num,ie,parts.slice(0,-1).join(" - "),parts[parts.length-1]];
+    return [num,ie,rest,""];
+  }
+  const segs=rest.split(".").map(x=>x.trim()).filter(Boolean);
+  if(segs.length>1 && TODW.has(segs[segs.length-1].toUpperCase()))
+    return [num,ie,segs.slice(0,-1).join(". "),segs[segs.length-1]];
+  return [num,ie,rest,""];
+}
+function buildScript(raw,title){
+  // raw: [pageNo, x0, top, text] per visual line, in reading order
+  const scenes=[];
+  let current=null, blocks=[], pending=null, prevTop=null, prevPage=null, marginNum=null;
+  const flush=()=>{ if(pending&&pending.text.trim()) blocks.push(pending); pending=null; };
+  const closeScene=()=>{ flush(); if(current!==null){ current.lines=blocks; scenes.push(current); } blocks=[]; };
+  const nextIsHeading=idx=>{
+    for(let j=idx+1;j<Math.min(idx+3,raw.length);j++){
+      const t2=raw[j][3].trim();
+      const t=t2.replace(/^\d+[A-Z]?\s+/,"");
+      if(HEAD_RX.test(t)||HEAD_RX.test(t2)) return true;
+      return false;
+    }
+    return false;
+  };
+  raw.forEach((row,ridx)=>{
+    const [pno,x0,top,text]=row;
+    // left-margin printed scene number: possibly doubled ("66  66"), fused with
+    // following text ("12 12 DARKNESS."), or column garbage feeding the next heading
+    if(x0<70){
+      const m=text.trim().match(/^(\d+[A-Z]?)\b\s*(.*)$/);
+      if(m && !HEAD_RX.test(text.trim())){
+        marginNum=m[1];
+        let rest=m[2].replace(new RegExp("^"+rxq(marginNum)+"\\b\\s*"),"").trim();
+        if(!rest) return;                       // pure number row
+        if(nextIsHeading(ridx)) return;         // residue is column garbage; number feeds the heading
+        rest=rest.replace(/\s+\d+[A-Z]?$/,"").trim();   // numbered beat with no slugline
+        closeScene();
+        current={num:marginNum, heading:rest.slice(0,60), ie:"", location:rest.slice(0,40), tod:"", page:pno};
+        marginNum=null;
+        return;
+      }
+    }
+    const kind=classifyLn(x0,text);
+    if(kind==="skip") return;
+    const gap=(prevTop!==null && pno===prevPage && top-prevTop>20);
+    prevTop=top; prevPage=pno;
+    if(kind==="heading"){
+      closeScene();
+      const [snum,ie,loc,tod]=parseHeadingLn(text);
+      current={num:snum||marginNum||String(scenes.length+1),
+        heading:text.replace(/^\d+[A-Z]?\s+/,"").replace(/\s+\d+[A-Z]?$/,""),
+        ie, location:loc, tod, page:pno};
+      marginNum=null;
+      return;
+    }
+    if(marginNum!==null){  // number on its own row, then a non-slugline beat
+      closeScene();
+      current={num:marginNum, heading:text.trim().slice(0,60), ie:"", location:text.trim().slice(0,40), tod:"", page:pno};
+      marginNum=null;
+    }
+    if(current===null)  // pre-first-scene material (title page, FADE IN)
+      current={num:1, heading:"FRONT MATTER", ie:"", location:"FRONT MATTER", tod:"", page:pno};
+    if(kind==="character"){
+      flush();
+      const name=text.replace(/\s*\((CONT'D|CONTD|O\.S\.|V\.O\.|OS|VO|CONT\u2019D)\.?\)/gi,"").trim();
+      pending={type:"dialogue", char:name, text:"", page:pno};
+    } else if(kind==="paren"||kind==="dialogue"){
+      if(pending&&pending.type==="dialogue") pending.text+=(pending.text?" ":"")+text;
+      else { flush(); pending={type:"action", char:"", text, page:pno}; }
+    } else if(kind==="transition"){
+      flush(); blocks.push({type:"transition", char:"", text, page:pno});
+    } else {
+      if(pending&&pending.type==="action"&&!gap) pending.text+=" "+text;
+      else { flush(); pending={type:"action", char:"", text, page:pno}; }
+    }
+  });
+  closeScene();
+  let item=0;
+  scenes.forEach(sc=>sc.lines.forEach(ln=>{ item+=20; ln.item=item; ln.scene=sc.num; }));
+  return {title, sequence:"PRJ",
+    pages:raw.reduce((m,r)=>Math.max(m,r[0]),0),
+    scenes, totalLines:scenes.reduce((n,sc)=>n+sc.lines.length,0)};
+}
+let pdfjsP=null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(pdfjsP) return pdfjsP;
+  pdfjsP=new Promise((res,rej)=>{
+    const sc=document.createElement("script");
+    sc.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    sc.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(window.pdfjsLib); };
+    sc.onerror=()=>{ pdfjsP=null; rej(new Error("Couldn't load the PDF engine — an internet connection is needed the first time.")); };
+    document.head.appendChild(sc);
+  });
+  return pdfjsP;
+}
+async function extractPdfLines(file,onProgress){
+  const pdfjs=await loadPdfJs();
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjs.getDocument({data:buf}).promise;
+  const raw=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const tc=await page.getTextContent();
+    const H=page.view[3]-page.view[1];
+    const rows={};
+    tc.items.forEach(it=>{
+      if(!it.str||!it.str.trim()) return;
+      const x=it.transform[4], top=H-it.transform[5];
+      const k=Math.round(top/3);
+      (rows[k]=rows[k]||[]).push({x,top,str:it.str,w:it.width||0});
+    });
+    Object.keys(rows).map(Number).sort((a,b)=>a-b).forEach(k=>{
+      const ws=rows[k].sort((a,b)=>a.x-b.x);
+      let text="", lastEnd=null;
+      ws.forEach(w=>{ if(lastEnd!==null && w.x-lastEnd>1) text+=" "; text+=w.str; lastEnd=w.x+w.w; });
+      text=text.replace(/\s+/g," ").trim();
+      if(text) raw.push([p, ws[0].x, ws[0].top, text]);
+    });
+    onProgress&&onProgress(p,pdf.numPages);
+  }
+  return raw;
+}
+
+/* ---------- first-run setup ---------- */
+function showSetup(){
+  const su=document.getElementById("setup");
+  su.hidden=false;
+  const drop=document.getElementById("pdfDrop"), st=document.getElementById("suStatus"),
+        ti=document.getElementById("suTitle"), go=document.getElementById("suGo");
+  let parsed=null;
+  const takePdf=async file=>{
+    if(!file) return;
+    if(!/pdf$/i.test(file.name)&&file.type!=="application/pdf"){ st.textContent="That doesn't look like a PDF."; return; }
+    if(!ti.value.trim())
+      ti.value=file.name.replace(/\.pdf$/i,"").replace(/[_-]+/g," ").trim().toUpperCase();
+    st.textContent="Reading PDF…";
+    go.disabled=true; parsed=null;
+    try{
+      const raw=await extractPdfLines(file,(p,n)=>{ st.textContent=`Parsing… page ${p} / ${n}`; });
+      parsed=buildScript(raw, ti.value.trim()||"UNTITLED");
+      if(!parsed.scenes.length){ st.textContent="No scenes found — is this a formatted screenplay PDF?"; return; }
+      st.innerHTML=`<b style="color:var(--green)">✓ ${parsed.scenes.length} scenes · ${parsed.pages} pages · ${parsed.totalLines} lines.</b><br>`+
+        `First scenes: ${parsed.scenes.slice(0,5).map(sc=>esc(String(sc.num))+" "+esc((sc.heading||"").slice(0,26))).join(" · ")}…<br>`+
+        `<span style="color:var(--dim2)">Check the numbering matches your script, then start.</span>`;
+      drop.textContent="✓ "+file.name+" — drop another PDF to re-parse";
+      go.disabled=false;
+    }catch(err){ st.textContent="⚠ "+err.message; }
+  };
+  drop.onclick=()=>{ const i=document.createElement("input"); i.type="file"; i.accept=".pdf,application/pdf";
+    i.onchange=()=>takePdf(i.files[0]); i.click(); };
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add("over")};
+  drop.ondragleave=()=>drop.classList.remove("over");
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");takePdf(e.dataTransfer.files[0])};
+  go.onclick=()=>{
+    if(!parsed) return;
+    parsed.title=ti.value.trim().toUpperCase()||parsed.title;
+    try{ localStorage.setItem(SCRIPT_KEY, JSON.stringify(parsed)); }
+    catch(e){ st.textContent="⚠ Browser storage is full or blocked — couldn't save the script."; return; }
+    location.reload();
+  };
+  document.getElementById("suImport").onclick=()=>{
+    const i=document.createElement("input"); i.type="file"; i.accept=".json,application/json";
+    i.onchange=()=>{
+      const f=new FileReader();
+      f.onload=()=>{
+        let obj; try{ obj=JSON.parse(f.result) }catch(e){ st.textContent="That file isn't valid JSON."; return; }
+        if(obj&&obj.script&&obj.state){
+          try{
+            localStorage.setItem(SCRIPT_KEY, JSON.stringify(obj.script));
+            localStorage.setItem("vfxsb:state:"+obj.script.title, JSON.stringify(obj.state));
+          }catch(e){ st.textContent="⚠ Storage full — couldn't restore."; return; }
+          location.reload();
+        } else st.textContent="That backup doesn't include the script — export a fresh session backup from the tool and use that.";
+      };
+      f.readAsText(i.files[0]);
+    };
+    i.click();
+  };
+}
+
+/* ---------- boot ---------- */
+function bootApp(){
+  filmTitle.textContent=DATA.title;
+  filmSub.textContent=(DATA.version?"draft "+DATA.version+" · ":"")+DATA.scenes.length+" scenes · "+DATA.pages+" pages";
+  renderAll();
+}
+search.oninput=()=>{query=search.value.trim();curMatch=0;renderScript();refreshSel();markCur()};
+search.onkeydown=e=>{
+  if(e.key==="Enter"){ e.preventDefault(); goMatch(e.shiftKey?-1:1) }
+  else if(e.key==="Escape"){ search.value=""; query=""; renderScript(); refreshSel(); markCur(); search.blur() }
+};
+document.getElementById("srchNext").onclick=()=>goMatch(1);
+document.getElementById("srchPrev").onclick=()=>goMatch(-1);
+document.getElementById("filter").onchange=e=>{filter=e.target.value;curMatch=0;renderScript();refreshSel();markCur();renderStrip()};
+document.getElementById("btnStripFilter").onclick=()=>{stripFilter=!stripFilter;renderStrip();
+  toast(stripFilter?"Scene list follows the filters":"Scene list shows all scenes")};
+const ef=document.getElementById("elFilter");
+function fillElFilter(){
+  const u=elUsage(), keep=ef.value;
+  const groups={};
+  S.lib.forEach(e=>{ if(u[e.name]) (groups[e.cat]=groups[e.cat]||[]).push(e) });
+  let html=`<option value="">Filter by element…</option>`;
+  Object.keys(groups).sort((a,b)=>a.localeCompare(b)).forEach(c=>{
+    const els=groups[c].sort((a,b)=>a.name.localeCompare(b.name));
+    const tot=els.reduce((s,e)=>s+u[e.name].n,0);
+    html+=`<optgroup label="${esc(c)}">`
+       +`<option value="cat:${esc(c)}">All ${esc(c)} · ${tot} shot${tot===1?"":"s"}</option>`
+       +els.map(e=>`<option value="${esc(e.name)}">&nbsp;&nbsp;${esc(e.name)} · ${u[e.name].n}</option>`).join("")
+       +`</optgroup>`;
+  });
+  ef.innerHTML=html;
+  ef.value=[...ef.options].some(o=>o.value===keep)?keep:"";
+}
+ef.onmousedown=fillElFilter;
+ef.onchange=()=>{ elFilter=ef.value; renderScript(); refreshSel(); renderStrip() };
+btnExp.onclick=openExport;
+btnStrip.onclick=()=>strip.classList.toggle("min");
+const THEME_KEY="vfxbd:theme";
+function applyTheme(t){document.body.classList.toggle("light",t==="light");btnTheme.textContent=t==="light"?"🌙":"☀︎"}
+let theme=lsGet(THEME_KEY)||"light";
+applyTheme(theme);
+btnTheme.onclick=()=>{theme=theme==="light"?"dark":"light";lsSet(THEME_KEY,theme);applyTheme(theme)};
+if(DATA){ initState(); bootApp(); }
+else showSetup();
+</script>
+</body>
+</html>

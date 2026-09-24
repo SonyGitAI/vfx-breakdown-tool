@@ -46,9 +46,11 @@ they flow into the workbook and CSV (placeholder `PRJ` until you change them).
 - **Breakdown JSON → xlsx** — the full bid workbook. Export the JSON, then:
 
   ```bash
-  pip install openpyxl        # once
   python3 pipeline/build_xlsx.py MY_FILM_breakdown.json
   ```
+
+  Nothing to install — the spreadsheet library ships bundled in
+  `pipeline/vendor/`; any stock Python 3 works (macOS includes one).
 
   Produces `<PROJ>_VFX_Breakdown.xlsx` from `pipeline/template.xlsx`: Shot
   Breakdown sheet with live formulas, Days column, storyboards embedded in

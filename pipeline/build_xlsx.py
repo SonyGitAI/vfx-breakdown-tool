@@ -10,7 +10,8 @@ sheet with your rows, and writes live Excel formulas so totals, averages, and
 the Sequence Breakdown stay linked. The project / sequence codes come from the
 JSON (set them in the tool's Export dialog).
 
-Requires: pip install openpyxl
+No installs needed: openpyxl ships bundled in pipeline/vendor/ and storyboards
+embed without Pillow.
 """
 import base64
 import copy as _copy
@@ -21,8 +22,44 @@ import sys
 import uuid
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent / "vendor"))
 import openpyxl
 from openpyxl.styles import Alignment
+from openpyxl.drawing.image import Image as _XLImage
+
+
+class RawImage(_XLImage):
+    """Image backed by raw bytes — no Pillow needed (dimensions parsed here)."""
+
+    def __init__(self, data, fmt, width, height):
+        self._raw = data
+        self.ref = io.BytesIO(data)
+        self.format = fmt
+        self.width, self.height = width, height
+
+    def _data(self):
+        return self._raw
+
+
+def image_size(data):
+    """(format, width, height) for PNG/JPEG bytes, else None. Pure python."""
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        w = int.from_bytes(data[16:20], "big")
+        h = int.from_bytes(data[20:24], "big")
+        return ("png", w, h)
+    if data[:2] == b"\xff\xd8":                       # JPEG: walk markers to SOF
+        i = 2
+        while i + 9 < len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                h = int.from_bytes(data[i + 5:i + 7], "big")
+                w = int.from_bytes(data[i + 7:i + 9], "big")
+                return ("jpeg", w, h)
+            i += 2 + int.from_bytes(data[i + 2:i + 4], "big")
+    return None
 
 TEMPLATE = Path(__file__).parent / "template.xlsx"
 DATA_START = 6  # first data row in Shot Breakdown
@@ -102,9 +139,12 @@ def main():
             put(r, 17, 0)
         if it.get("img", "").startswith("data:image"):
             try:
-                from openpyxl.drawing.image import Image as XLImage
                 raw = base64.b64decode(it["img"].split(",", 1)[1])
-                pic = XLImage(io.BytesIO(raw))
+                meta = image_size(raw)
+                if not meta:
+                    raise ValueError("unsupported image format")
+                fmt, w0, h0 = meta
+                pic = RawImage(raw, fmt, w0, h0)
                 px_h = 120
                 scale = px_h / pic.height
                 pic.height, pic.width = px_h, int(pic.width * scale)

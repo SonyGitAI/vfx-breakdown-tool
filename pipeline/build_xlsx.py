@@ -236,13 +236,20 @@ def main():
           + (" -> Shot Breakdown tab, column R" if n_img else ""))
 
 
+def _pause(msg):
+    # keep the console window open for drag-and-drop users; CI has no stdin
+    if getattr(sys, "frozen", False):
+        try:
+            input(msg)
+        except EOFError:
+            pass
+
+
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
         print(f"ERROR: {e}")
-        if getattr(sys, "frozen", False):
-            input("Press Enter to close...")
+        _pause("Press Enter to close...")
         raise
-    if getattr(sys, "frozen", False):
-        input("Done - press Enter to close...")
+    _pause("Done - press Enter to close...")

@@ -1977,16 +1977,21 @@ function buildScript(raw,title){
 }
 let pdfjsP=null;
 function loadPdfJs(){
+  // bundled copy in lib/ first (fully offline); CDN only as a fallback if lib/ is missing
   if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
   if(pdfjsP) return pdfjsP;
-  pdfjsP=new Promise((res,rej)=>{
+  const tryLoad=(src,worker)=>new Promise((res,rej)=>{
     const sc=document.createElement("script");
-    sc.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-    sc.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc=
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(window.pdfjsLib); };
-    sc.onerror=()=>{ pdfjsP=null; rej(new Error("Couldn't load the PDF engine — an internet connection is needed the first time.")); };
+    sc.src=src;
+    sc.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc=worker; res(window.pdfjsLib); };
+    sc.onerror=()=>rej(new Error("load failed: "+src));
     document.head.appendChild(sc);
   });
+  pdfjsP=tryLoad("lib/pdf.min.js","lib/pdf.worker.min.js")
+    .catch(()=>tryLoad("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+                       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"))
+    .catch(()=>{ pdfjsP=null;
+      throw new Error("Couldn't load the PDF engine — the lib/ folder is missing and there's no internet."); });
   return pdfjsP;
 }
 async function extractPdfLines(file,onProgress){

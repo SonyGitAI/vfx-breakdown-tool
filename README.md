@@ -62,8 +62,9 @@ scope-only document.
 
 ## Notes
 
-- Parsing needs an internet connection the first time only (the PDF engine loads
-  from a CDN); the script itself never leaves your machine.
+- Fully offline: the PDF engine ships in `lib/`, and the script never leaves
+  your machine. (If `lib/` is deleted, the tool falls back to loading the engine
+  from a CDN — the only case where it touches the network.)
 - Scene numbering: the parser handles numbered shooting scripts, doubled margin
   numbers ("66  66"), and numberless cold-open beats. Always eyeball the scene
   list against your script before breaking down — the upload screen shows the

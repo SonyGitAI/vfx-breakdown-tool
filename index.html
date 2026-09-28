@@ -891,11 +891,28 @@ function renderSceneEditor(si){
         <div class="phr">${PHRASES.map(p=>`<button data-shp="${esc(p)}">${esc(p)}</button>`).join("")}</div></div>
     </div></div>`;
   }).join("");
-  const lineShots=sc.lines.filter(l=>{const r=has(l.item); return r&&(r.status==="vfx"||r.practical)});
   const linkedRefs=(d.shots||[]).flatMap(s=>s.lines||[]);
+  const lineShots=sc.lines.filter(l=>{const r=has(l.item);
+    return (r&&(r.status==="vfx"||r.practical)) || (isLinked(l.item)&&!linkedRefs.includes(l.item))});
+  const elsewhere=[], seenLk=new Set();
+  sc.lines.forEach(l=>{
+    const lk=shotForLine(l.item);
+    if(lk&&lk.si!==si){ const k=lk.si+":"+lk.idx; if(!seenLk.has(k)){ seenLk.add(k); elsewhere.push(lk); } }
+  });
+  const elsewhereHtml=elsewhere.length?`<div class="linkhdr">Linked from this scene — stored under another scene (${elsewhere.length})</div>`+
+    elsewhere.map(lk=>{
+      const sh=(S.scenes[lk.si].shots||[])[lk.idx]; if(!sh) return "";
+      const mini=sh.img?`<img class="mini" src="${sh.img}">`:"";
+      return `<div class="shot linked" data-golink="${lk.si}:${lk.idx}">
+        <div class="shot-h"><span style="width:8px"></span>
+          <span class="id">${esc(sceneShotId(lk.si,lk.idx))}</span>
+          <span class="lbl">${esc(sh.label||"Untitled shot")}</span>
+          <span style="font-size:10px;color:var(--dim2);white-space:nowrap">sc ${esc(String(DATA.scenes[lk.si].num))} · p${DATA.scenes[lk.si].page}</span></div>
+        <div class="shot-sum">${mini}${sh.desc?`<span class="d">${esc(sh.desc)}</span>`:""}${(sh.elements||[]).length?`<span class="e">${esc(sh.elements.join(" · "))}</span>`:""}</div></div>`;
+    }).join(""):"";
   const lineShotsHtml=lineShots.length?`<div class="linkhdr">From script lines (${lineShots.length})</div>`+
     lineShots.map(l=>{
-      const r=has(l.item);
+      const r=has(l.item)||{};
       const desc=(l.char?l.char+": ":"")+l.text;
       const els=(r.elements||[]).length?`<span class="e">${esc(r.elements.join(" · "))}</span>`:"";
       return `<div class="shot linked" data-goline="${l.item}">
@@ -923,6 +940,7 @@ function renderSceneEditor(si){
     ${shotsHtml||`<div class="empty" style="padding:12px">No scene shots yet.</div>`}
     <button class="btn primary" id="addShot" style="width:100%;margin-top:4px">+ Add shot</button>
     ${lineShotsHtml}
+    ${elsewhereHtml}
   </div>
   <div class="sec">
     <button class="btn" id="bulkLines" style="width:100%">Select all ${DATA.scenes[si].lines.length} lines instead (bulk line-tag)</button>
@@ -997,6 +1015,11 @@ function wireScene(si){
   inspBody.querySelectorAll("[data-delshot]").forEach(b=>b.onclick=e=>{e.stopPropagation();
     d.shots.splice(+b.dataset.delshot,1); activeShot=-1;
     sceneSave(si); renderSceneEditor(si)});
+  inspBody.querySelectorAll("[data-golink]").forEach(c=>c.onclick=()=>{
+    const [tsi,tidx]=c.dataset.golink.split(":").map(Number);
+    sceneEdit=tsi; activeShot=tidx; sel=[]; refreshSel(); setScene(tsi); refreshShead(); renderInspector();
+    const card=inspBody.querySelector(".shot.open"); card&&card.scrollIntoView({block:"center"});
+  });
   inspBody.querySelectorAll("[data-goline]").forEach(c=>c.onclick=()=>{
     const it=+c.dataset.goline;
     sceneEdit=null; refreshShead(); sel=[it]; anchor=it; refreshSel(); renderInspector();

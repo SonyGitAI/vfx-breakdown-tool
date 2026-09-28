@@ -369,6 +369,25 @@ function initState(){
   if(S.seq==null) S.seq="PRJ";
   Object.values(S.items||{}).forEach(r=>{ if(r.status==="novfx") r.status="" });
   DATA.scenes.forEach((sc,si)=>sc.lines.forEach(l=>{l._s=si;ALL.push(l)}));
+  // intercut slices: scenes printed with the same number share ONE shot pool,
+  // stored under the first slice (the canonical index)
+  { const first={};
+    DATA.scenes.forEach((sc,i)=>{
+      const k=(sc.location==="FRONT MATTER")?("__fm"+i):String(sc.num);
+      if(first[k]===undefined) first[k]=i;
+      CANON[i]=first[k];
+    });
+  }
+  Object.keys(S.scenes||{}).forEach(k=>{
+    const si=+k, c=CANON[si];
+    if(c===undefined||c===si) return;
+    const src=S.scenes[k]; if(!src) return;
+    const dst=S.scenes[c]||(S.scenes[c]={difficulty:"",notes:"",shots:[]});
+    dst.shots=(dst.shots||[]).concat(src.shots||[]);
+    if(!dst.difficulty&&src.difficulty) dst.difficulty=src.difficulty;
+    if(src.notes) dst.notes=dst.notes?dst.notes+" "+src.notes:src.notes;
+    delete S.scenes[k];
+  });
 }
 let sel=[], anchor=null, filter="all", query="", elFilter="", curScene=0, stripFilter=false;
 let sceneEdit=null, activeShot=0, lineElQ="", shotElQ="", reviewByScene=true;
@@ -392,8 +411,8 @@ function dropHtml(q,chosen,attr){
        <span>${chosen.includes(e.name)?"✓ ":""}${esc(e.name)}</span>
        <span class="c">${esc(e.cat)} · ${e.lod}${costPreview?"·"+e.cost:""}</span></button>`).join("")}</div>`;
 }
-function srec(si){ return S.scenes[si] || (S.scenes[si]={difficulty:"",notes:"",shots:[]}) }
-function shas(si){ return S.scenes[si] }
+function srec(si){ si=CANON[si]??si; return S.scenes[si] || (S.scenes[si]={difficulty:"",notes:"",shots:[]}) }
+function shas(si){ return S.scenes[CANON[si]??si] }
 function shotCost(sh){ if(sh.lock) return sh.cost||0;
   if(!(sh.elements||[]).length) return sh.cost||0;
   let c=0; sh.elements.forEach(n=>{const e=findEl(n); if(e)c+=e.cost}); return c }
@@ -407,6 +426,7 @@ let saveT; function save(){ linkedSet=null; clearTimeout(saveT); saveT=setTimeou
 },250) }
 
 const ALL=[];
+const CANON={};
 function rec(it){ return S.items[it] || (S.items[it]={status:"",practical:false,elements:[],methods:[],lod:"",shots:0,cost:0,days:0,notes:"",lock:false}) }
 function has(it){ const r=S.items[it]; if(r&&!r.methods)r.methods=[]; return r }
 function money(n){ return "$"+(n||0).toLocaleString("en-US") }
@@ -835,7 +855,8 @@ function renderInspector(){
 const DIFFS=["Low","Medium","High"];
 function sceneShotId(si,idx){ return DATA.scenes[si].num+"-"+String((idx+1)*10).padStart(3,"0") }
 function renderSceneEditor(si){
-  if(sceneBaseline[si]===undefined) sceneBaseline[si]=JSON.stringify(S.scenes[si]||null);
+  const csi=CANON[si]??si;
+  if(sceneBaseline[csi]===undefined) sceneBaseline[csi]=JSON.stringify(S.scenes[csi]||null);
   const sc=DATA.scenes[si], d=srec(si), st=sceneStat(si);
   const cats=catsOf();
   const shotsHtml=(d.shots||[]).map((sh,i)=>{
@@ -897,7 +918,7 @@ function renderSceneEditor(si){
   const elsewhere=[], seenLk=new Set();
   sc.lines.forEach(l=>{
     const lk=shotForLine(l.item);
-    if(lk&&lk.si!==si){ const k=lk.si+":"+lk.idx; if(!seenLk.has(k)){ seenLk.add(k); elsewhere.push(lk); } }
+    if(lk&&(CANON[lk.si]??lk.si)!==(CANON[si]??si)){ const k=lk.si+":"+lk.idx; if(!seenLk.has(k)){ seenLk.add(k); elsewhere.push(lk); } }
   });
   const elsewhereHtml=elsewhere.length?`<div class="linkhdr">Linked from this scene — stored under another scene (${elsewhere.length})</div>`+
     elsewhere.map(lk=>{
@@ -948,6 +969,7 @@ function renderSceneEditor(si){
   wireScene(si);
 }
 function sceneSave(si){
+  si=CANON[si]??si;
   const before=sceneBaseline[si];
   const now=JSON.stringify(S.scenes[si]||null);
   if(before!==undefined && before!==now){
@@ -956,7 +978,8 @@ function sceneSave(si){
       data:before==="null"?undefined:JSON.parse(before)});
   }
   sceneBaseline[si]=now;
-  save(); renderHeader(); renderStrip(); updateSheadMeta(si); }
+  save(); renderHeader(); renderStrip();
+  DATA.scenes.forEach((_,j)=>{ if((CANON[j]??j)===si) updateSheadMeta(j); }); }
 function wireScene(si){
   const d=srec(si);
   inspBody.querySelectorAll("[data-diff]").forEach(b=>b.onclick=()=>{
@@ -974,7 +997,20 @@ function wireScene(si){
     if(e.target.dataset.delshot!==undefined) return;
     const i=+h.dataset.open;
     activeShot = (activeShot===i ? -1 : i);   // click again to collapse
-    renderSceneEditor(si)});
+    renderSceneEditor(si);
+    // snap the script to the shot's linked line — it may sit in a different
+    // slice of an intercut scene than the one being viewed
+    if(activeShot===i){
+      const sh2=(srec(si).shots||[])[i];
+      const it=sh2&&(sh2.lines||[])[0];
+      const el=it&&blkEls[it];
+      if(el){
+        el.scrollIntoView({block:"center"});
+        const l=ALL.find(x=>x.item===it); l&&setScene(l._s);
+        el.style.transition="background .3s"; el.style.background="var(--selbg)";
+        setTimeout(()=>{el.style.background=""},1400);
+      }
+    }});
   inspBody.querySelectorAll("[data-drag]").forEach(h=>{
     const card=h.closest(".shot");
     h.ondragstart=e=>{
@@ -1319,6 +1355,7 @@ function rowFor(l,sc){
     l.text,notes,scope,isV?(r.lod||""):"",shots,isV?(r.days||""):"",cost,isV?(r.shots||0)*c:0,"",hyb,isV?(r.shots||0)*(hyb||0):0];
 }
 function sceneRows(sc,si){
+  if((CANON[si]??si)!==si) return [];
   const d=shas(si); if(!d) return [];
   const out=[];
   if(d.difficulty||d.notes)
@@ -1354,7 +1391,7 @@ function exportJSON(){
     includePrices:exportPrices, lib:S.lib, rows:[]};
   const px=v=>exportPrices?v:0;
   DATA.scenes.forEach((sc,si)=>{
-    const d=shas(si);
+    const d=(CANON[si]??si)===si?shas(si):null;
     if(d&&(d.difficulty||d.notes))
       out.rows.push({item:"",page:sc.page,scene:sc.num,ie:sc.ie,location:sc.location,tod:sc.tod,
         char:"",text:"[SCENE NOTES]",status:"note",elements:[],methods:[],lod:"",shots:0,cost:0,
@@ -1461,7 +1498,8 @@ function loadJSON(obj){
   if(obj && Array.isArray(obj.rows)){                              // breakdown JSON
     S={seq:obj.seq||DATA.sequence, hybrid:obj.hybrid||100, allowShots:obj.allowShots||0,
        allowRate:obj.allowRate||500, items:{}, scenes:{}, lib:(obj.lib&&obj.lib.length)?obj.lib:SEED.slice()};
-    const idx={}; DATA.scenes.forEach((sc,i)=>idx[String(sc.num)]=i);
+    const idx={}; DATA.scenes.forEach((sc,i)=>{ if(sc.location==="FRONT MATTER") return;
+      const k=String(sc.num); if(idx[k]===undefined) idx[k]=i; });
     obj.rows.forEach(row=>{
       const si=idx[String(row.scene)]; if(si===undefined) return;
       if(row.status==="note"){
@@ -1559,7 +1597,7 @@ btnBd.onclick=()=>{
   const cp=costPreview;
   const rows=[];
   DATA.scenes.forEach((sc,si)=>{
-    const d=shas(si);
+    const d=(CANON[si]??si)===si?shas(si):null;
     if(d&&(d.difficulty||d.notes))
       rows.push({kind:"scn",sc,text:"[SCENE NOTES]",notes:[d.difficulty?"Difficulty: "+d.difficulty:"",d.notes||""].filter(Boolean).join(". ")});
     if(d)(d.shots||[]).forEach((sh,i)=>rows.push({kind:"shot",sc,si,i,sh,
